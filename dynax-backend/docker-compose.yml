@@ -1,0 +1,38 @@
+version: "3.9"
+
+
+services:
+  # ── Redis (rate limiting + session blacklist) ──────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: dynax_redis
+    command: redis-server --requirepass devpassword
+    ports:
+      - "6379:6379"
+    volumes:
+      - dynax_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "devpassword", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── DynaX API ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dynax_api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://postgres:Damilare143@db.mpalgyyaffwyqaabdinh.supabase.co:5432/postgres
+      REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: devpassword
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  dynax_redisdata:

@@ -1,0 +1,41 @@
+# Binaries
+bin/
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Environment files (NEVER commit secrets)
+.env
+.env.local
+.env.production
+
+# Build logs
+build-errors.log
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Swagger generated files (regenerate with `make swagger`)
+docs/swagger/swagger.json
+docs/swagger/swagger.yaml
+docs/swagger/docs.go
+
+# Docker
+.docker/
