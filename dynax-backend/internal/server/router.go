@@ -21,7 +21,7 @@ import (
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
 
-	_ "github.com/dynalimb/dynax-backend/docs/swagger" // swagger docs
+	_ "github.com/dynalimb/dynax-backend/docs" // swagger docs
 )
 
 // Handlers aggregates all route handler dependencies.
@@ -70,7 +70,6 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(
 		swaggerFiles.Handler,
 		ginSwagger.URL("/swagger/doc.json"),
-		ginSwagger.InstanceName("swagger"),
 	))
 
 	// ── API v1 ────────────────────────────────────────────────────────────────
