@@ -55,6 +55,8 @@ import (
 	"github.com/dynalimb/dynax-backend/internal/server"
 	"github.com/dynalimb/dynax-backend/internal/services"
 	"github.com/dynalimb/dynax-backend/pkg/logger"
+
+	swaggerDocs "github.com/dynalimb/dynax-backend/docs/swagger"
 )
 
 func main() {
@@ -70,6 +72,13 @@ func main() {
 		Str("env", cfg.App.Env).
 		Str("port", cfg.App.Port).
 		Msg("Starting DynaX API")
+
+	// ── Swagger host (so "Try it out" targets the deployed domain) ────────────
+	// Set SWAGGER_HOST on Render to e.g. "dyna-x.onrender.com".
+	if host := os.Getenv("SWAGGER_HOST"); host != "" {
+		swaggerDocs.SwaggerInfo.Host = host
+		swaggerDocs.SwaggerInfo.Schemes = []string{"https"}
+	}
 
 	// ── JWT ───────────────────────────────────────────────────────────────────
 	jwtMgr := auth.NewManager(cfg.JWT.Secret, cfg.JWT.ExpiryHours, cfg.JWT.RefreshExpiryHours)

@@ -67,7 +67,11 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 	})
 
 	// ── Swagger UI ────────────────────────────────────────────────────────────
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(
+		swaggerFiles.Handler,
+		ginSwagger.URL("/swagger/doc.json"),
+		ginSwagger.InstanceName("swagger"),
+	))
 
 	// ── API v1 ────────────────────────────────────────────────────────────────
 	v1 := r.Group("/api/v1")
