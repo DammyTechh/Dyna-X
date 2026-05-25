@@ -21,7 +21,7 @@ import (
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
 
-	_ "github.com/dynalimb/dynax-backend/docs/swagger" // swagger docs
+	swaggerDocs "github.com/dynalimb/dynax-backend/docs/swagger" // swagger docs
 )
 
 // Handlers aggregates all route handler dependencies.
@@ -67,11 +67,21 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 	})
 
 	// ── Swagger UI ────────────────────────────────────────────────────────────
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(
+	// Serve the spec ourselves for doc.json (avoids gin-swagger's template
+	// render path, which returned 500), and delegate everything else under
+	// /swagger/ to the UI handler. A single wildcard route avoids gin's
+	// static-vs-wildcard conflict panic.
+	swaggerUI := ginSwagger.WrapHandler(
 		swaggerFiles.NewHandler(),
 		ginSwagger.URL("/swagger/doc.json"),
-		ginSwagger.InstanceName("swagger"),
-	))
+	)
+	r.GET("/swagger/*any", func(c *gin.Context) {
+		if c.Param("any") == "/doc.json" {
+			c.Data(http.StatusOK, "application/json; charset=utf-8", swaggerDocs.SwaggerJSON)
+			return
+		}
+		swaggerUI(c)
+	})
 
 	// ── API v1 ────────────────────────────────────────────────────────────────
 	v1 := r.Group("/api/v1")
