@@ -26,6 +26,6 @@ func Init(level, format string) {
 }
 
 // Get returns the global logger.
-func Get() zerolog.Logger {
-	return log.Logger
+func Get() *zerolog.Logger {
+	return &log.Logger
 }

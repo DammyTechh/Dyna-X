@@ -1,10 +1,10 @@
 package professional
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
 	"github.com/dynalimb/dynax-backend/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
 // Handler handles professional-facing endpoints.
@@ -19,6 +19,7 @@ type Service interface {
 	GetMyPatients(userID string, q *models.PaginationQuery) ([]models.PatientProfile, int64, error)
 	GetPatient(professionalID, patientID string) (*models.PatientProfile, error)
 	GeneratePersonalCode(userID string) (string, error)
+	ShareCodeWithPatient(userID, patientEmail string) error
 	GetAppointments(userID string, q *models.PaginationQuery) ([]models.Appointment, int64, error)
 	CreateAppointment(userID string, req *models.CreateAppointmentRequest) (*models.Appointment, error)
 	UpdateAppointment(userID, appointmentID string, req *models.UpdateAppointmentRequest) (*models.Appointment, error)
@@ -330,4 +331,24 @@ func (h *Handler) GetSession(c *gin.Context) {
 		return
 	}
 	response.OK(c, "Session retrieved", session)
+}
+
+type shareCodeRequest struct {
+	PatientEmail string `json:"patient_email"`
+}
+
+// ShareCode emails the professional's DX PIN to a patient's email so the patient
+// can enter it on their dashboard to connect.
+// @Router /professional/share-code [post]
+func (h *Handler) ShareCode(c *gin.Context) {
+	var req shareCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.PatientEmail == "" {
+		response.BadRequest(c, "INVALID_PAYLOAD", "patient_email is required")
+		return
+	}
+	if err := h.service.ShareCodeWithPatient(middleware.GetUserID(c), req.PatientEmail); err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "DX PIN sent to the patient's email", gin.H{"sent": true})
 }

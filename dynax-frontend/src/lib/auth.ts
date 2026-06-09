@@ -25,8 +25,14 @@ export const authService = {
   forgotPassword: (email: string) =>
     apiPost('/auth/forgot-password', { email }),
 
-  resetPassword: (token: string, password: string) =>
-    apiPost('/auth/reset-password', { token, password }),
+  resetPassword: (email: string, code: string, password: string) =>
+    apiPost('/auth/reset-password', { email, code, password }),
+
+  verifyEmail: (email: string, code: string) =>
+    apiPost('/auth/verify-email', { email, code }),
+
+  resendVerification: (email: string) =>
+    apiPost('/auth/resend-verification', { email }),
 
   changePassword: (current_password: string, new_password: string) =>
     apiPost('/auth/change-password', { current_password, new_password }),

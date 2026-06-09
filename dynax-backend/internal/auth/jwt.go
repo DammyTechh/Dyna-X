@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/dynalimb/dynax-backend/internal/models"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // Claims embeds standard JWT claims with DynaX user data.
@@ -25,9 +25,9 @@ type TokenPair struct {
 
 // Manager handles JWT operations.
 type Manager struct {
-	secret             []byte
-	accessExpiry       time.Duration
-	refreshExpiry      time.Duration
+	secret        []byte
+	accessExpiry  time.Duration
+	refreshExpiry time.Duration
 }
 
 func NewManager(secret string, accessExpiry, refreshExpiry time.Duration) *Manager {

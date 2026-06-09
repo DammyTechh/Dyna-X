@@ -1,18 +1,33 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, Suspense } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, PerspectiveCamera, useGLTF } from '@react-three/drei';
+import { OrbitControls, Grid, Environment, PerspectiveCamera } from '@react-three/drei';
 import {
   Share2, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Download,
-  Eye, Edit3, Layers, ChevronRight, X, Send, Copy, Check,
-  Link as LinkIcon, Lock, Unlock, Loader2, ArrowLeft,
+  Eye, Edit3, Layers, X, Send, Copy, Check,
+  Link as LinkIcon, Loader2, ArrowLeft, Upload,
 } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { tokenStore } from '@/lib/api';
+import { useDeviceComments, useAddDeviceComment, useCreateDeviceShare } from '@/hooks/useApi';
+
+// Real scan viewer (STL/OBJ/GLTF) — client-only, no SSR.
+const ModelViewer = dynamic(() => import('@/components/3d/ModelViewer'), {
+  ssr: false,
+  loading: () => (
+    <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+      <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+    </div>
+  ),
+});
+
+const ACCEPTED_3D = '.glb,.gltf,.stl,.obj';
 
 type Permission = 'view' | 'comment' | 'annotate';
 
@@ -79,36 +94,81 @@ function Scene({ wireframe }: { wireframe: boolean }) {
   );
 }
 
-export default function EditorPage() {
+function EditorInner() {
   const role = tokenStore.getRole() || 'professional';
+  const searchParams = useSearchParams();
+  const deviceId = searchParams.get('device') || undefined;
+
+  // Server-backed collaboration when a device is in context.
+  const { data: serverComments } = useDeviceComments(deviceId);
+  const addCommentMut = useAddDeviceComment(deviceId);
+  const createShareMut = useCreateDeviceShare(deviceId);
   const [wireframe, setWireframe] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showShare, setShowShare] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
   const [permission, setPermission] = useState<Permission>('comment');
   const [generatingLink, setGeneratingLink] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [comments, setComments] = useState<Comment[]>([
-    { id: '1', author_name: 'Dr. Emeka Obi', author_role: 'Prosthetist', content: 'Socket fit looks good. Recommend checking the distal end clearance.', created_at: new Date(Date.now() - 3600000).toISOString(), is_own: false },
-    { id: '2', author_name: 'You', author_role: role, content: 'Agreed. Will adjust the trim line on the medial side.', created_at: new Date(Date.now() - 1800000).toISOString(), is_own: true },
-  ]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
+
+  // When a device is in context, mirror server comments into the panel.
+  useEffect(() => {
+    if (deviceId && Array.isArray(serverComments)) {
+      setComments(
+        serverComments.map((c) => ({
+          id: c.id,
+          author_name: c.author_name,
+          author_role: c.author_role,
+          content: c.content,
+          created_at: c.created_at,
+          is_own: c.author_role === role,
+        })),
+      );
+    }
+  }, [deviceId, serverComments, role]);
+
+  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const ok = /\.(glb|gltf|stl|obj)$/i.test(file.name);
+    if (!ok) {
+      toast.error('Unsupported file. Use GLB, GLTF, STL or OBJ.');
+      return;
+    }
+    setUploadedFile(file);
+    toast.success(`Loaded ${file.name}`);
+  };
 
   const generateShareLink = async () => {
     setGeneratingLink(true);
     try {
-      // TODO: call /emr/devices/{id}/share
-      await new Promise((r) => setTimeout(r, 800));
-      const token = Math.random().toString(36).substring(2, 10).toUpperCase();
-      const newLink: ShareLink = {
-        id: Date.now().toString(),
-        token,
-        permission,
-        url: `${window.location.origin}/share/${token}`,
-        created_at: new Date().toISOString(),
-      };
-      setShareLinks((prev) => [newLink, ...prev]);
-      toast.success('Share link generated!');
+      if (deviceId) {
+        // Persist the share link on the backend.
+        const share = await createShareMut.mutateAsync(permission);
+        const newLink: ShareLink = {
+          id: share.id,
+          token: share.token,
+          permission: (share.permission as Permission) || permission,
+          url: share.url || `${window.location.origin}/share/${share.token}`,
+          created_at: share.created_at,
+        };
+        setShareLinks((prev) => [newLink, ...prev]);
+        toast.success('Share link created');
+      } else {
+        // Standalone editor (no device record yet): session-only link.
+        const token = Math.random().toString(36).substring(2, 10).toUpperCase();
+        setShareLinks((prev) => [
+          { id: Date.now().toString(), token, permission, url: `${window.location.origin}/share/${token}`, created_at: new Date().toISOString() },
+          ...prev,
+        ]);
+        toast.success('Share link generated (open a device to make it permanent)');
+      }
+    } catch {
+      toast.error('Could not create share link');
     } finally {
       setGeneratingLink(false);
     }
@@ -123,6 +183,13 @@ export default function EditorPage() {
 
   const addComment = () => {
     if (!commentText.trim()) return;
+    if (deviceId) {
+      addCommentMut.mutate(commentText.trim(), {
+        onError: () => toast.error('Could not post comment'),
+      });
+      setCommentText('');
+      return;
+    }
     const newComment: Comment = {
       id: Date.now().toString(),
       author_name: 'You',
@@ -154,11 +221,29 @@ export default function EditorPage() {
           </div>
           <div>
             <p className="text-sm font-semibold">3D Scan Editor</p>
-            <p className="text-xs text-slate-400">Transtibial Prosthesis · Case #2024-089</p>
+            <p className="text-xs text-slate-400">
+              {uploadedFile ? uploadedFile.name : 'Import a scan to begin'}
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Import scan */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_3D}
+            onChange={onPickFile}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Import
+          </button>
+
           {/* Wireframe toggle */}
           <button
             onClick={() => setWireframe(!wireframe)}
@@ -211,18 +296,35 @@ export default function EditorPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* 3D Canvas */}
         <div className="flex-1 relative">
-          <Suspense fallback={
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
-              <div className="text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-2" />
-                <p className="text-slate-400 text-sm">Loading 3D model…</p>
+          {uploadedFile ? (
+            <ModelViewer uploadedFile={uploadedFile} readOnly={false} />
+          ) : (
+            <Suspense fallback={
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+                <div className="text-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-2" />
+                  <p className="text-slate-400 text-sm">Loading 3D model…</p>
+                </div>
               </div>
+            }>
+              <Canvas shadows className="editor-canvas">
+                <Scene wireframe={wireframe} />
+              </Canvas>
+            </Suspense>
+          )}
+
+          {/* Empty-state hint when nothing imported */}
+          {!uploadedFile && (
+            <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-xl bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 backdrop-blur border border-slate-700 hover:bg-slate-700"
+              >
+                <Upload className="h-4 w-4" /> Import a scan (GLB, GLTF, STL, OBJ)
+              </button>
+              <p className="mt-2 text-xs text-slate-500">A sample limb is shown for reference</p>
             </div>
-          }>
-            <Canvas shadows className="editor-canvas">
-              <Scene wireframe={wireframe} />
-            </Canvas>
-          </Suspense>
+          )}
 
           {/* Canvas controls overlay */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-800/80 backdrop-blur rounded-xl px-3 py-2 border border-slate-700">
@@ -240,8 +342,10 @@ export default function EditorPage() {
 
           {/* Model info badge */}
           <div className="absolute top-4 left-4 bg-slate-800/80 backdrop-blur rounded-xl px-4 py-2 border border-slate-700 text-xs">
-            <p className="font-medium text-slate-200">Transtibial Socket</p>
-            <p className="text-slate-400">Left · Carbon Fiber · Size M</p>
+            <p className="font-medium text-slate-200">{uploadedFile ? uploadedFile.name : 'Sample geometry'}</p>
+            <p className="text-slate-400">
+              {uploadedFile ? `${(uploadedFile.size / 1024 / 1024).toFixed(2)} MB` : 'Import a scan to replace'}
+            </p>
           </div>
         </div>
 
@@ -361,6 +465,13 @@ export default function EditorPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {comments.length === 0 && (
+                <div className="flex h-full flex-col items-center justify-center text-center py-10">
+                  <MessageCircle className="h-8 w-8 text-slate-600 mb-2" />
+                  <p className="text-sm text-slate-400">No comments yet</p>
+                  <p className="text-xs text-slate-500 mt-1">Share this scan to collaborate.</p>
+                </div>
+              )}
               {comments.map((comment) => (
                 <div key={comment.id} className={cn('flex gap-2', comment.is_own && 'flex-row-reverse')}>
                   <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-teal-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
@@ -407,5 +518,19 @@ export default function EditorPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function EditorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center bg-slate-900 text-white">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+        </div>
+      }
+    >
+      <EditorInner />
+    </Suspense>
   );
 }

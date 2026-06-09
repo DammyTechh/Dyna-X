@@ -30,11 +30,11 @@ export default function PatientDashboard() {
     if (!pinCode.trim()) return;
     try {
       await connect(pinCode.trim());
-      toast.success('Connected to professional successfully!');
+      toast.success('Connected to your professional successfully!');
       setPinCode('');
       setShowConnect(false);
     } catch (err: unknown) {
-      toast.error((err as Error).message || 'Invalid code. Please check and try again.');
+      toast.error((err as Error).message || 'Invalid or expired PIN. Please check and try again.');
     }
   };
 
@@ -62,12 +62,6 @@ export default function PatientDashboard() {
               <p className="text-blue-100 text-sm">
                 {profile?.condition ? `Managing: ${profile.condition}` : 'Track your rehabilitation journey'}
               </p>
-              {profile?.personal_code && (
-                <div className="mt-3 inline-flex items-center gap-2 bg-white/20 rounded-lg px-3 py-1.5">
-                  <span className="text-xs text-blue-100">Your Patient Code:</span>
-                  <span className="text-sm font-mono font-bold">{profile.personal_code}</span>
-                </div>
-              )}
             </>
           )}
         </div>
@@ -85,8 +79,8 @@ export default function PatientDashboard() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="font-display font-semibold text-slate-900">Connect to a Professional</h2>
-                <p className="text-slate-500 text-xs mt-0.5">Enter the DX-PIN code from your professional</p>
+                <h2 className="font-display font-semibold text-slate-900">Connect to your Professional</h2>
+                <p className="text-slate-500 text-xs mt-0.5">Use the DX-PIN your professional emailed you</p>
               </div>
               <button
                 onClick={() => setShowConnect(!showConnect)}
@@ -100,14 +94,14 @@ export default function PatientDashboard() {
             {showConnect && (
               <div className="bg-blue-50 rounded-xl p-4 space-y-3 mb-4 border border-blue-100">
                 <p className="text-xs text-blue-700 font-medium">
-                  Enter the PIN code your professional shared with you or emailed you:
+                  Enter the DX-PIN your professional emailed you:
                 </p>
                 <div className="flex gap-2">
                   <input
                     value={pinCode}
                     onChange={(e) => setPinCode(e.target.value.toUpperCase())}
-                    placeholder="DX-XXXX-XXXX"
-                    className="flex-1 px-3 py-2 rounded-lg border border-blue-200 bg-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    placeholder="DX-PIN (e.g. K7M2QP)"
+                    className="flex-1 px-3 py-2 rounded-lg border border-blue-200 bg-white text-sm font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                   <button
                     onClick={handleConnect}

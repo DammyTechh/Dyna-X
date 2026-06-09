@@ -22,28 +22,29 @@ const (
 // ─── User & Auth ──────────────────────────────────────────────────────────────
 
 type User struct {
-	ID        string    `json:"id" db:"id"`
-	Email     string    `json:"email" db:"email"`
-	Role      Role      `json:"role" db:"role"`
-	IsActive  bool      `json:"is_active" db:"is_active"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID         string    `json:"id" db:"id"`
+	Email      string    `json:"email" db:"email"`
+	Role       Role      `json:"role" db:"role"`
+	IsActive   bool      `json:"is_active" db:"is_active"`
+	IsVerified bool      `json:"is_verified" db:"is_verified"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type Profile struct {
-	ID             string    `json:"id" db:"id"`
-	UserID         string    `json:"user_id" db:"user_id"`
-	FullName       string    `json:"full_name" db:"full_name"`
-	PhoneNumber    *string   `json:"phone_number,omitempty" db:"phone_number"`
-	AvatarURL      *string   `json:"avatar_url,omitempty" db:"avatar_url"`
-	DateOfBirth    *string   `json:"date_of_birth,omitempty" db:"date_of_birth"`
-	Gender         *string   `json:"gender,omitempty" db:"gender"`
-	Address        *string   `json:"address,omitempty" db:"address"`
-	City           *string   `json:"city,omitempty" db:"city"`
-	Country        *string   `json:"country,omitempty" db:"country"`
-	PersonalCode   *string   `json:"personal_code,omitempty" db:"personal_code"`
-	CreatedAt      time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
+	ID           string    `json:"id" db:"id"`
+	UserID       string    `json:"user_id" db:"user_id"`
+	FullName     string    `json:"full_name" db:"full_name"`
+	PhoneNumber  *string   `json:"phone_number,omitempty" db:"phone_number"`
+	AvatarURL    *string   `json:"avatar_url,omitempty" db:"avatar_url"`
+	DateOfBirth  *string   `json:"date_of_birth,omitempty" db:"date_of_birth"`
+	Gender       *string   `json:"gender,omitempty" db:"gender"`
+	Address      *string   `json:"address,omitempty" db:"address"`
+	City         *string   `json:"city,omitempty" db:"city"`
+	Country      *string   `json:"country,omitempty" db:"country"`
+	PersonalCode *string   `json:"personal_code,omitempty" db:"personal_code"`
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // ─── Auth Request / Response DTOs ────────────────────────────────────────────
@@ -78,13 +79,23 @@ type ForgotPasswordRequest struct {
 }
 
 type ResetPasswordRequest struct {
-	Token    string `json:"token" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Code     string `json:"code" validate:"required,len=6"`
 	Password string `json:"password" validate:"required,min=8"`
 }
 
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password" validate:"required"`
 	NewPassword     string `json:"new_password" validate:"required,min=8"`
+}
+
+type VerifyEmailRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	Code  string `json:"code" validate:"required,len=6"`
+}
+
+type ResendVerificationRequest struct {
+	Email string `json:"email" validate:"required,email"`
 }
 
 // ─── Professional Profile ─────────────────────────────────────────────────────
@@ -160,7 +171,12 @@ type UpdatePatientProfileRequest struct {
 // ─── Professional PIN Connection ──────────────────────────────────────────────
 
 type ConnectToProfessionalRequest struct {
-	ProfessionalCode string `json:"professional_code" validate:"required"`
+	// New one-time-PIN flow: the professional emails the patient a PIN, and the
+	// patient enters the professional's email + that PIN here.
+	ProfessionalEmail string `json:"professional_email,omitempty"`
+	Pin               string `json:"pin,omitempty"`
+	// Legacy direct-code flow (still supported).
+	ProfessionalCode string `json:"professional_code,omitempty"`
 }
 
 type ProfessionalConnection struct {
@@ -213,22 +229,22 @@ type UpdateAppointmentRequest struct {
 // ─── Session / Therapy Log ────────────────────────────────────────────────────
 
 type TherapySession struct {
-	ID             string     `json:"id" db:"id"`
-	PatientID      string     `json:"patient_id" db:"patient_id"`
-	ProfessionalID string     `json:"professional_id" db:"professional_id"`
-	AppointmentID  *string    `json:"appointment_id,omitempty" db:"appointment_id"`
-	SessionDate    time.Time  `json:"session_date" db:"session_date"`
-	DurationMins   int        `json:"duration_minutes" db:"duration_minutes"`
-	SessionType    string     `json:"session_type" db:"session_type"`
-	Status         string     `json:"status" db:"status"`
-	SubjectiveNote *string    `json:"subjective_note,omitempty" db:"subjective_note"`
-	ObjectiveNote  *string    `json:"objective_note,omitempty" db:"objective_note"`
-	AssessmentNote *string    `json:"assessment_note,omitempty" db:"assessment_note"`
-	PlanNote       *string    `json:"plan_note,omitempty" db:"plan_note"`
-	GoalsAchieved  *bool      `json:"goals_achieved,omitempty" db:"goals_achieved"`
-	PatientRating  *int       `json:"patient_rating,omitempty" db:"patient_rating"`
-	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
+	ID             string    `json:"id" db:"id"`
+	PatientID      string    `json:"patient_id" db:"patient_id"`
+	ProfessionalID string    `json:"professional_id" db:"professional_id"`
+	AppointmentID  *string   `json:"appointment_id,omitempty" db:"appointment_id"`
+	SessionDate    time.Time `json:"session_date" db:"session_date"`
+	DurationMins   int       `json:"duration_minutes" db:"duration_minutes"`
+	SessionType    string    `json:"session_type" db:"session_type"`
+	Status         string    `json:"status" db:"status"`
+	SubjectiveNote *string   `json:"subjective_note,omitempty" db:"subjective_note"`
+	ObjectiveNote  *string   `json:"objective_note,omitempty" db:"objective_note"`
+	AssessmentNote *string   `json:"assessment_note,omitempty" db:"assessment_note"`
+	PlanNote       *string   `json:"plan_note,omitempty" db:"plan_note"`
+	GoalsAchieved  *bool     `json:"goals_achieved,omitempty" db:"goals_achieved"`
+	PatientRating  *int      `json:"patient_rating,omitempty" db:"patient_rating"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CreateSessionRequest struct {
@@ -246,17 +262,17 @@ type CreateSessionRequest struct {
 // ─── EMR / Clinical Notes ─────────────────────────────────────────────────────
 
 type ClinicalNote struct {
-	ID              string    `json:"id" db:"id"`
-	PatientID       string    `json:"patient_id" db:"patient_id"`
-	ProfessionalID  string    `json:"professional_id" db:"professional_id"`
-	SessionID       *string   `json:"session_id,omitempty" db:"session_id"`
-	NoteType        string    `json:"note_type" db:"note_type"` // soap | progress | assessment | referral
-	Title           string    `json:"title" db:"title"`
-	Content         string    `json:"content" db:"content"`
-	DiagnosisCodes  []string  `json:"diagnosis_codes,omitempty" db:"diagnosis_codes"`
-	IsConfidential  bool      `json:"is_confidential" db:"is_confidential"`
-	CreatedAt       time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	ID             string    `json:"id" db:"id"`
+	PatientID      string    `json:"patient_id" db:"patient_id"`
+	ProfessionalID string    `json:"professional_id" db:"professional_id"`
+	SessionID      *string   `json:"session_id,omitempty" db:"session_id"`
+	NoteType       string    `json:"note_type" db:"note_type"` // soap | progress | assessment | referral
+	Title          string    `json:"title" db:"title"`
+	Content        string    `json:"content" db:"content"`
+	DiagnosisCodes []string  `json:"diagnosis_codes,omitempty" db:"diagnosis_codes"`
+	IsConfidential bool      `json:"is_confidential" db:"is_confidential"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CreateClinicalNoteRequest struct {
@@ -272,18 +288,18 @@ type CreateClinicalNoteRequest struct {
 // ─── Care Plans ───────────────────────────────────────────────────────────────
 
 type CarePlan struct {
-	ID             string     `json:"id" db:"id"`
-	PatientID      string     `json:"patient_id" db:"patient_id"`
-	ProfessionalID string     `json:"professional_id" db:"professional_id"`
-	Title          string     `json:"title" db:"title"`
-	Description    *string    `json:"description,omitempty" db:"description"`
-	Goals          []string   `json:"goals,omitempty" db:"goals"`
-	StartDate      string     `json:"start_date" db:"start_date"`
-	EndDate        *string    `json:"end_date,omitempty" db:"end_date"`
-	Status         string     `json:"status" db:"status"` // active | completed | paused | cancelled
-	ProgressNotes  *string    `json:"progress_notes,omitempty" db:"progress_notes"`
-	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
+	ID             string    `json:"id" db:"id"`
+	PatientID      string    `json:"patient_id" db:"patient_id"`
+	ProfessionalID string    `json:"professional_id" db:"professional_id"`
+	Title          string    `json:"title" db:"title"`
+	Description    *string   `json:"description,omitempty" db:"description"`
+	Goals          []string  `json:"goals,omitempty" db:"goals"`
+	StartDate      string    `json:"start_date" db:"start_date"`
+	EndDate        *string   `json:"end_date,omitempty" db:"end_date"`
+	Status         string    `json:"status" db:"status"` // active | completed | paused | cancelled
+	ProgressNotes  *string   `json:"progress_notes,omitempty" db:"progress_notes"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CreateCarePlanRequest struct {
@@ -298,17 +314,17 @@ type CreateCarePlanRequest struct {
 // ─── Exercise Plans ───────────────────────────────────────────────────────────
 
 type ExercisePlan struct {
-	ID             string      `json:"id" db:"id"`
-	PatientID      string      `json:"patient_id" db:"patient_id"`
-	ProfessionalID string      `json:"professional_id" db:"professional_id"`
-	Title          string      `json:"title" db:"title"`
-	Description    *string     `json:"description,omitempty" db:"description"`
-	Exercises      interface{} `json:"exercises" db:"exercises"` // JSONB
-	FrequencyPerWeek int       `json:"frequency_per_week" db:"frequency_per_week"`
-	DurationWeeks  int         `json:"duration_weeks" db:"duration_weeks"`
-	Status         string      `json:"status" db:"status"`
-	CreatedAt      time.Time   `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time   `json:"updated_at" db:"updated_at"`
+	ID               string      `json:"id" db:"id"`
+	PatientID        string      `json:"patient_id" db:"patient_id"`
+	ProfessionalID   string      `json:"professional_id" db:"professional_id"`
+	Title            string      `json:"title" db:"title"`
+	Description      *string     `json:"description,omitempty" db:"description"`
+	Exercises        interface{} `json:"exercises" db:"exercises"` // JSONB
+	FrequencyPerWeek int         `json:"frequency_per_week" db:"frequency_per_week"`
+	DurationWeeks    int         `json:"duration_weeks" db:"duration_weeks"`
+	Status           string      `json:"status" db:"status"`
+	CreatedAt        time.Time   `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time   `json:"updated_at" db:"updated_at"`
 }
 
 // ─── Prosthetic Devices ───────────────────────────────────────────────────────
@@ -356,14 +372,14 @@ type SendMessageRequest struct {
 }
 
 type Conversation struct {
-	ID               string     `json:"id" db:"id"`
-	PatientID        *string    `json:"patient_id,omitempty" db:"patient_id"`
-	ProfessionalID   *string    `json:"professional_id,omitempty" db:"professional_id"`
-	AdminID          *string    `json:"admin_id,omitempty" db:"admin_id"`
-	LastMessage      *string    `json:"last_message,omitempty" db:"last_message"`
-	LastMessageAt    *time.Time `json:"last_message_at,omitempty" db:"last_message_at"`
-	UnreadCount      int        `json:"unread_count" db:"unread_count"`
-	CreatedAt        time.Time  `json:"created_at" db:"created_at"`
+	ID             string     `json:"id" db:"id"`
+	PatientID      *string    `json:"patient_id,omitempty" db:"patient_id"`
+	ProfessionalID *string    `json:"professional_id,omitempty" db:"professional_id"`
+	AdminID        *string    `json:"admin_id,omitempty" db:"admin_id"`
+	LastMessage    *string    `json:"last_message,omitempty" db:"last_message"`
+	LastMessageAt  *time.Time `json:"last_message_at,omitempty" db:"last_message_at"`
+	UnreadCount    int        `json:"unread_count" db:"unread_count"`
+	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
 }
 
 // ─── TheraPay ─────────────────────────────────────────────────────────────────
@@ -386,26 +402,26 @@ type TheraPay struct {
 }
 
 type CreateTherapayRequest struct {
-	PatientID           string  `json:"patient_id" validate:"required,uuid"`
-	PlanType            string  `json:"plan_type" validate:"required,oneof=session bundle subscription installment"`
-	TotalAmount         float64 `json:"total_amount" validate:"required,gt=0"`
-	SessionsTotal       *int    `json:"sessions_total,omitempty"`
+	PatientID           string   `json:"patient_id" validate:"required,uuid"`
+	PlanType            string   `json:"plan_type" validate:"required,oneof=session bundle subscription installment"`
+	TotalAmount         float64  `json:"total_amount" validate:"required,gt=0"`
+	SessionsTotal       *int     `json:"sessions_total,omitempty"`
 	InstallmentAmount   *float64 `json:"installment_amount,omitempty"`
-	InstallmentInterval *string `json:"installment_interval,omitempty"`
+	InstallmentInterval *string  `json:"installment_interval,omitempty"`
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 type Notification struct {
-	ID        string     `json:"id" db:"id"`
-	UserID    string     `json:"user_id" db:"user_id"`
-	Type      string     `json:"type" db:"type"`
-	Title     string     `json:"title" db:"title"`
-	Body      string     `json:"body" db:"body"`
+	ID        string      `json:"id" db:"id"`
+	UserID    string      `json:"user_id" db:"user_id"`
+	Type      string      `json:"type" db:"type"`
+	Title     string      `json:"title" db:"title"`
+	Body      string      `json:"body" db:"body"`
 	Data      interface{} `json:"data,omitempty" db:"data"`
-	IsRead    bool       `json:"is_read" db:"is_read"`
-	ReadAt    *time.Time `json:"read_at,omitempty" db:"read_at"`
-	CreatedAt time.Time  `json:"created_at" db:"created_at"`
+	IsRead    bool        `json:"is_read" db:"is_read"`
+	ReadAt    *time.Time  `json:"read_at,omitempty" db:"read_at"`
+	CreatedAt time.Time   `json:"created_at" db:"created_at"`
 }
 
 // ─── AI Assistant ─────────────────────────────────────────────────────────────
@@ -428,14 +444,14 @@ type AIQueryRequest struct {
 // ─── Admin ────────────────────────────────────────────────────────────────────
 
 type AdminStats struct {
-	TotalUsers          int64 `json:"total_users"`
-	TotalPatients       int64 `json:"total_patients"`
-	TotalProfessionals  int64 `json:"total_professionals"`
-	PendingApprovals    int64 `json:"pending_approvals"`
-	TotalSessions       int64 `json:"total_sessions"`
-	ActiveCarePlans     int64 `json:"active_care_plans"`
-	TotalRevenue        float64 `json:"total_revenue"`
-	SessionsThisMonth   int64 `json:"sessions_this_month"`
+	TotalUsers         int64   `json:"total_users"`
+	TotalPatients      int64   `json:"total_patients"`
+	TotalProfessionals int64   `json:"total_professionals"`
+	PendingApprovals   int64   `json:"pending_approvals"`
+	TotalSessions      int64   `json:"total_sessions"`
+	ActiveCarePlans    int64   `json:"active_care_plans"`
+	TotalRevenue       float64 `json:"total_revenue"`
+	SessionsThisMonth  int64   `json:"sessions_this_month"`
 }
 
 type AssignProfessionalRequest struct {

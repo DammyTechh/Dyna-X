@@ -9,8 +9,7 @@ import { z } from 'zod';
 import { Eye, EyeOff, Loader2, ArrowLeft, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRegister } from '@/hooks/useApi';
-import { tokenStore } from '@/lib/api';
-import { getDashboardRoute } from '@/lib/routing';
+import { Logo } from '@/components/brand/Logo';
 
 const ROLES = [
   { value: 'patient', label: 'Patient', desc: 'Seeking rehabilitation or prosthetic care', icon: '🏥' },
@@ -46,10 +45,9 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: FormData) => {
     try {
-      const res = await register(data);
-      tokenStore.setTokens(res.access_token, res.refresh_token, res.user.role);
-      toast.success('Account created! Welcome to DynaX.');
-      router.push(getDashboardRoute(res.user.role));
+      await register(data);
+      toast.success('Account created! Check your email to verify.');
+      router.push(`/auth/verify-email?email=${encodeURIComponent(data.email)}`);
     } catch (err: unknown) {
       toast.error((err as Error).message || 'Registration failed');
     }
@@ -64,9 +62,7 @@ export default function RegisterPage() {
 
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl dynax-gradient flex items-center justify-center">
-              <span className="text-white font-display font-bold">DX</span>
-            </div>
+            <Logo size={40} showWord={false} />
             <div>
               <h1 className="font-display font-bold text-xl text-slate-900">Create your DynaX account</h1>
               <p className="text-slate-500 text-sm">Free to join. No credit card required.</p>

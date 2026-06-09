@@ -872,26 +872,33 @@ RETURNS BOOLEAN LANGUAGE sql STABLE AS $$
 $$;
 
 -- ── dynax_users ───────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "users_select_own" ON public.dynax_users;
 CREATE POLICY "users_select_own" ON public.dynax_users
   FOR SELECT USING (auth_id = auth.uid() OR public.is_admin());
 
+DROP POLICY IF EXISTS "users_update_own" ON public.dynax_users;
 CREATE POLICY "users_update_own" ON public.dynax_users
   FOR UPDATE USING (auth_id = auth.uid());
 
+DROP POLICY IF EXISTS "admin_all_users" ON public.dynax_users;
 CREATE POLICY "admin_all_users" ON public.dynax_users
   FOR ALL USING (public.is_admin());
 
 -- ── user_profiles ─────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "profiles_select_own" ON public.user_profiles;
 CREATE POLICY "profiles_select_own" ON public.user_profiles
   FOR SELECT USING (user_id = public.get_dynax_user_id() OR public.is_admin());
 
+DROP POLICY IF EXISTS "profiles_update_own" ON public.user_profiles;
 CREATE POLICY "profiles_update_own" ON public.user_profiles
   FOR UPDATE USING (user_id = public.get_dynax_user_id());
 
 -- ── patient_profiles ──────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "patient_profiles_own" ON public.patient_profiles;
 CREATE POLICY "patient_profiles_own" ON public.patient_profiles
   FOR ALL USING (user_id = public.get_dynax_user_id() OR public.is_admin());
 
+DROP POLICY IF EXISTS "patient_profiles_professionals_read" ON public.patient_profiles;
 CREATE POLICY "patient_profiles_professionals_read" ON public.patient_profiles
   FOR SELECT USING (
     EXISTS (
@@ -903,13 +910,16 @@ CREATE POLICY "patient_profiles_professionals_read" ON public.patient_profiles
   );
 
 -- ── therapist_profiles ────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "therapist_profiles_public_read" ON public.therapist_profiles;
 CREATE POLICY "therapist_profiles_public_read" ON public.therapist_profiles
   FOR SELECT USING (is_approved = TRUE OR user_id = public.get_dynax_user_id() OR public.is_admin());
 
+DROP POLICY IF EXISTS "therapist_profiles_own_write" ON public.therapist_profiles;
 CREATE POLICY "therapist_profiles_own_write" ON public.therapist_profiles
   FOR ALL USING (user_id = public.get_dynax_user_id() OR public.is_admin());
 
 -- ── appointments ─────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "appointments_participant" ON public.appointments;
 CREATE POLICY "appointments_participant" ON public.appointments
   FOR ALL USING (
     patient_id = public.get_dynax_user_id()
@@ -918,6 +928,7 @@ CREATE POLICY "appointments_participant" ON public.appointments
   );
 
 -- ── therapy_sessions ─────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "sessions_participant" ON public.therapy_sessions;
 CREATE POLICY "sessions_participant" ON public.therapy_sessions
   FOR ALL USING (
     patient_id = public.get_dynax_user_id()
@@ -926,12 +937,14 @@ CREATE POLICY "sessions_participant" ON public.therapy_sessions
   );
 
 -- ── clinical_notes ────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "notes_professional_write" ON public.clinical_notes;
 CREATE POLICY "notes_professional_write" ON public.clinical_notes
   FOR ALL USING (
     professional_id = public.get_dynax_user_id()
     OR public.is_admin()
   );
 
+DROP POLICY IF EXISTS "notes_patient_read" ON public.clinical_notes;
 CREATE POLICY "notes_patient_read" ON public.clinical_notes
   FOR SELECT USING (
     patient_id = public.get_dynax_user_id()
@@ -939,6 +952,7 @@ CREATE POLICY "notes_patient_read" ON public.clinical_notes
   );
 
 -- ── care_plans ────────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "care_plans_participant" ON public.care_plans;
 CREATE POLICY "care_plans_participant" ON public.care_plans
   FOR ALL USING (
     patient_id = public.get_dynax_user_id()
@@ -947,6 +961,7 @@ CREATE POLICY "care_plans_participant" ON public.care_plans
   );
 
 -- ── conversations ─────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "conversations_participant" ON public.conversations;
 CREATE POLICY "conversations_participant" ON public.conversations
   FOR ALL USING (
     patient_id = public.get_dynax_user_id()
@@ -956,6 +971,7 @@ CREATE POLICY "conversations_participant" ON public.conversations
   );
 
 -- ── messages ─────────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "messages_via_conversation" ON public.messages;
 CREATE POLICY "messages_via_conversation" ON public.messages
   FOR ALL USING (
     EXISTS (
@@ -971,6 +987,7 @@ CREATE POLICY "messages_via_conversation" ON public.messages
   );
 
 -- ── therapay_plans ────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "therapay_participant" ON public.therapay_plans;
 CREATE POLICY "therapay_participant" ON public.therapay_plans
   FOR ALL USING (
     patient_id = public.get_dynax_user_id()
@@ -979,17 +996,21 @@ CREATE POLICY "therapay_participant" ON public.therapay_plans
   );
 
 -- ── notifications ─────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "notifications_own" ON public.notifications;
 CREATE POLICY "notifications_own" ON public.notifications
   FOR ALL USING (user_id = public.get_dynax_user_id() OR public.is_admin());
 
 -- ── audit_logs ───────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "audit_logs_admin_only" ON public.audit_logs;
 CREATE POLICY "audit_logs_admin_only" ON public.audit_logs
   FOR SELECT USING (public.is_admin());
 
+DROP POLICY IF EXISTS "audit_logs_insert" ON public.audit_logs;
 CREATE POLICY "audit_logs_insert" ON public.audit_logs
   FOR INSERT WITH CHECK (TRUE);  -- backend service role inserts
 
 -- ── ai_conversations ─────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "ai_conversations_own" ON public.ai_conversations;
 CREATE POLICY "ai_conversations_own" ON public.ai_conversations
   FOR ALL USING (user_id = public.get_dynax_user_id() OR public.is_admin());
 

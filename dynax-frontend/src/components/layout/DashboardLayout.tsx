@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { tokenStore } from '@/lib/api';
 import { authService } from '@/lib/auth';
-import { getDashboardRoute, getRoleLabel, getRoleColor } from '@/lib/routing';
+import { getDashboardRoute, getRoleLabel, getRoleColor, canAccessEditor } from '@/lib/routing';
 import { useUnreadCount } from '@/hooks/useApi';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -58,8 +58,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       { label: 'Sessions', href: '/dashboard/professional/sessions', icon: Activity },
       { label: 'Clinical Notes', href: '/dashboard/professional/notes', icon: ClipboardList },
       { label: 'Care Plans', href: '/dashboard/professional/care-plans', icon: Heart },
-      { label: '3D Editor', href: '/editor', icon: Scan },
       { label: 'TheraPay', href: '/dashboard/professional/therapay', icon: CreditCard },
+    ] : []),
+    // 3D Editor — Prosthetists & Orthotists only
+    ...(canAccessEditor(role) ? [
+      { label: '3D Editor', href: '/editor', icon: Scan },
     ] : []),
     // Patient routes
     ...(isPatient ? [

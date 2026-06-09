@@ -71,13 +71,13 @@ func (r *ProfessionalRepository) FindByPersonalCode(ctx context.Context, code st
 	}
 
 	p := &models.ProfessionalProfile{
-		UserID:         userID,
+		UserID:           userID,
 		ProfessionalType: profType,
-		FullName:       fullName,
-		ClinicName:     &clinicName,
-		AvatarURL:      &avatarURL,
-		IsApproved:     isApproved,
-		PersonalCode:   &code,
+		FullName:         fullName,
+		ClinicName:       &clinicName,
+		AvatarURL:        &avatarURL,
+		IsApproved:       isApproved,
+		PersonalCode:     &code,
 	}
 	return p, nil
 }
@@ -101,6 +101,19 @@ func (r *ProfessionalRepository) Create(ctx context.Context, userID, fullName, e
 	q := fmt.Sprintf(`
 		INSERT INTO public.%s (user_id, full_name, email, personal_code)
 		VALUES ($1, $2, $3, $4)`, table)
+
+	// po_professional_profiles has a NOT NULL professional_type column.
+	if table == "po_professional_profiles" {
+		ptype := "prosthetist"
+		if role == models.RoleOrthotist {
+			ptype = "orthotist"
+		}
+		q = `INSERT INTO public.po_professional_profiles
+			(user_id, full_name, email, personal_code, professional_type)
+			VALUES ($1, $2, $3, $4, $5)`
+		_, err := r.db.Exec(ctx, q, userID, fullName, email, code, ptype)
+		return err
+	}
 
 	_, err := r.db.Exec(ctx, q, userID, fullName, email, code)
 	return err
@@ -204,4 +217,28 @@ func roleTable(role models.Role) string {
 	default:
 		return ""
 	}
+}
+
+// UpdateProfile applies a partial update to a professional's role profile.
+func (r *ProfessionalRepository) UpdateProfile(ctx context.Context, userID string, role models.Role, req *models.UpdateProfessionalProfileRequest) error {
+	table := roleTable(role)
+	if table == "" {
+		return fmt.Errorf("unsupported professional role: %s", role)
+	}
+	q := fmt.Sprintf(`
+		UPDATE public.%s SET
+			full_name                  = COALESCE($2, full_name),
+			phone_number               = COALESCE($3, phone_number),
+			bio                        = COALESCE($4, bio),
+			clinic_name                = COALESCE($5, clinic_name),
+			license_number             = COALESCE($6, license_number),
+			experience_years           = COALESCE($7, experience_years),
+			session_rate               = COALESCE($8, session_rate),
+			virtual_sessions_enabled   = COALESCE($9, virtual_sessions_enabled),
+			in_person_sessions_enabled = COALESCE($10, in_person_sessions_enabled),
+			updated_at                 = NOW()
+		WHERE user_id = $1`, table)
+	return r.db.ExecOne(ctx, q, userID,
+		req.FullName, req.PhoneNumber, req.Bio, req.ClinicName, req.LicenseNumber,
+		req.ExperienceYears, req.SessionRate, req.VirtualSessionEnabled, req.InPersonEnabled)
 }

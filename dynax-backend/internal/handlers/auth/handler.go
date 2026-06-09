@@ -1,10 +1,10 @@
 package auth
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
 	"github.com/dynalimb/dynax-backend/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
 // Handler holds dependencies for auth endpoints.
@@ -18,8 +18,10 @@ type Service interface {
 	Login(req *models.LoginRequest) (*models.AuthResponse, error)
 	RefreshToken(refreshToken string) (*models.AuthResponse, error)
 	ForgotPassword(email string) error
-	ResetPassword(token, newPassword string) error
+	ResetPassword(email, code, newPassword string) error
 	ChangePassword(userID, currentPassword, newPassword string) error
+	VerifyEmail(email, code string) error
+	ResendVerification(email string) error
 	Logout(userID, token string) error
 }
 
@@ -153,11 +155,54 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		response.UnprocessableEntity(c, "Validation failed", err)
 		return
 	}
-	if err := h.service.ResetPassword(req.Token, req.Password); err != nil {
-		response.BadRequest(c, "INVALID_TOKEN", "Token is invalid or expired")
+	if err := h.service.ResetPassword(req.Email, req.Code, req.Password); err != nil {
+		response.BadRequest(c, "INVALID_CODE", "The code is invalid or has expired")
 		return
 	}
 	response.OK(c, "Password reset successfully", nil)
+}
+
+// VerifyEmail godoc
+// @Summary      Verify email address
+// @Description  Confirms a user's email address using the token sent via email.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      models.VerifyEmailRequest  true  "Verification token"
+// @Success      200   {object}  response.Envelope
+// @Failure      400   {object}  response.Envelope
+// @Router       /auth/verify-email [post]
+func (h *Handler) VerifyEmail(c *gin.Context) {
+	var req models.VerifyEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Request body is malformed")
+		return
+	}
+	if err := h.service.VerifyEmail(req.Email, req.Code); err != nil {
+		response.BadRequest(c, "INVALID_CODE", "The code is invalid or has expired")
+		return
+	}
+	response.OK(c, "Email verified successfully", nil)
+}
+
+// ResendVerification godoc
+// @Summary      Resend verification email
+// @Description  Re-sends the email verification link to the provided address.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      models.ResendVerificationRequest  true  "Email address"
+// @Success      200   {object}  response.Envelope
+// @Router       /auth/resend-verification [post]
+func (h *Handler) ResendVerification(c *gin.Context) {
+	var req models.ResendVerificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Request body is malformed")
+		return
+	}
+	// Always return success to prevent email enumeration.
+	_ = h.service.ResendVerification(req.Email)
+	response.OK(c, "If an account exists for that email, a verification link has been sent.", nil)
 }
 
 // ChangePassword godoc

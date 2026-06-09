@@ -24,10 +24,11 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Env     string
-	Port    string
-	Name    string
-	Version string
+	Env         string
+	Port        string
+	Name        string
+	Version     string
+	FrontendURL string
 }
 
 type DBConfig struct {
@@ -66,10 +67,10 @@ type StorageConfig struct {
 }
 
 type SecurityConfig struct {
-	BcryptCost          int
-	RateLimitRPS        float64
-	RateLimitBurst      int
-	CORSAllowedOrigins  []string
+	BcryptCost         int
+	RateLimitRPS       float64
+	RateLimitBurst     int
+	CORSAllowedOrigins []string
 }
 
 type LogConfig struct {
@@ -86,17 +87,19 @@ func Load() (*Config, error) {
 
 	// App
 	cfg.App = AppConfig{
-		Env:     getEnv("APP_ENV", "development"),
-		Port:    getEnv("APP_PORT", "8080"),
-		Name:    getEnv("APP_NAME", "DynaX API"),
-		Version: getEnv("APP_VERSION", "1.0.0"),
+		Env:         getEnv("APP_ENV", "development"),
+		Port:        getEnv("APP_PORT", "8080"),
+		Name:        getEnv("APP_NAME", "DynaX API"),
+		Version:     getEnv("APP_VERSION", "1.0.0"),
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
 	}
 
-	// DB
+	// DB — only DATABASE_URL is required. Supabase keys are optional (used only
+	// if you also talk to the Supabase REST/Storage APIs).
 	cfg.DB = DBConfig{
-		SupabaseURL:            mustEnv("SUPABASE_URL"),
-		SupabaseAnonKey:        mustEnv("SUPABASE_ANON_KEY"),
-		SupabaseServiceRoleKey: mustEnv("SUPABASE_SERVICE_ROLE_KEY"),
+		SupabaseURL:            getEnv("SUPABASE_URL", ""),
+		SupabaseAnonKey:        getEnv("SUPABASE_ANON_KEY", ""),
+		SupabaseServiceRoleKey: getEnv("SUPABASE_SERVICE_ROLE_KEY", ""),
 		DatabaseURL:            mustEnv("DATABASE_URL"),
 	}
 
@@ -115,9 +118,9 @@ func Load() (*Config, error) {
 		Password: getEnv("REDIS_PASSWORD", ""),
 	}
 
-	// Resend
+	// Resend — optional. With no key, emails are skipped and links are logged.
 	cfg.Resend = ResendConfig{
-		APIKey:    mustEnv("RESEND_API_KEY"),
+		APIKey:    getEnv("RESEND_API_KEY", ""),
 		FromEmail: getEnv("RESEND_FROM_EMAIL", "noreply@dynalimb.com"),
 		FromName:  getEnv("RESEND_FROM_NAME", "DynaX Platform"),
 	}

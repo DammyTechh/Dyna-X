@@ -2,21 +2,30 @@ import { UserRole } from '@/types';
 
 export function getDashboardRoute(role: UserRole | string): string {
   switch (role) {
-    case 'admin':               return '/dashboard/admin';
-    case 'patient':             return '/dashboard/patient';
-    case 'physiotherapist':     return '/dashboard/professional/physio';
-    case 'prosthetist':         return '/dashboard/professional/prosthetist';
-    case 'orthotist':           return '/dashboard/professional/orthotist';
-    case 'occupational_therapist': return '/dashboard/professional/ot';
-    case 'speech_therapist':    return '/dashboard/professional/speech';
-    case 'mental_health_clinician': return '/dashboard/professional/mental-health';
-    default:                    return '/dashboard/patient';
+    case 'admin':   return '/dashboard/admin';
+    case 'patient': return '/dashboard/patient';
+    // All professional roles share the professional dashboard. The UI adapts
+    // per role (e.g. the 3D editor is only exposed to prosthetist/orthotist).
+    case 'physiotherapist':
+    case 'prosthetist':
+    case 'orthotist':
+    case 'occupational_therapist':
+    case 'speech_therapist':
+    case 'mental_health_clinician':
+      return '/dashboard/professional';
+    default:
+      return '/dashboard/patient';
   }
 }
 
 export function isProfessionalRole(role: string): boolean {
   return ['physiotherapist', 'prosthetist', 'orthotist', 'occupational_therapist',
     'speech_therapist', 'mental_health_clinician'].includes(role);
+}
+
+/** Only Prosthetists & Orthotists may access the 3D scan editor. */
+export function canAccessEditor(role: string): boolean {
+  return role === 'prosthetist' || role === 'orthotist';
 }
 
 export function getRoleLabel(role: string): string {

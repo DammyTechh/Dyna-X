@@ -3,8 +3,10 @@ package db
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
 
@@ -24,11 +26,19 @@ func Connect(cfg *config.Config) (*Pool, error) {
 	}
 
 	// Pool settings tuned for Supabase session mode (Transaction pooling uses different limits).
-	pgxCfg.MaxConns            = 20
-	pgxCfg.MinConns            = 2
-	pgxCfg.MaxConnIdleTime     = 5 * time.Minute
-	pgxCfg.MaxConnLifetime     = 30 * time.Minute
-	pgxCfg.HealthCheckPeriod   = 1 * time.Minute
+	pgxCfg.MaxConns = 20
+	pgxCfg.MinConns = 2
+	pgxCfg.MaxConnIdleTime = 5 * time.Minute
+	pgxCfg.MaxConnLifetime = 30 * time.Minute
+	pgxCfg.HealthCheckPeriod = 1 * time.Minute
+
+	// Supabase's connection pooler (Supavisor / PgBouncer) does not support
+	// cached prepared statements in transaction mode. Using the "exec" query
+	// mode keeps typed parameters working while avoiding prepared-statement
+	// errors, so both the session (5432) and transaction (6543) pooler ports work.
+	if strings.Contains(pgxCfg.ConnConfig.Host, "pooler.supabase.com") {
+		pgxCfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -38,12 +48,17 @@ func Connect(cfg *config.Config) (*Pool, error) {
 		return nil, fmt.Errorf("create pool: %w", err)
 	}
 
-	// Verify connectivity
+	// Verify connectivity, but do not abort startup if it fails. pgxpool is
+	// lazy — the pool is valid and will (re)connect on first use — so the API
+	// (and Swagger) still come up, and DB-backed routes recover automatically
+	// once the database is reachable. This avoids a single bad/unreachable
+	// connection string taking down the whole server.
 	if err := pool.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("ping db: %w", err)
+		log.Warn().Err(err).Str("host", pgxCfg.ConnConfig.Host).
+			Msg("initial database ping failed — API starting anyway; will connect on demand. Check DATABASE_URL (use the Supabase Session pooler URI).")
+	} else {
+		log.Info().Str("host", pgxCfg.ConnConfig.Host).Msg("connected to Supabase Postgres")
 	}
-
-	log.Info().Str("host", pgxCfg.ConnConfig.Host).Msg("connected to Supabase Postgres")
 	return &Pool{pool}, nil
 }
 

@@ -1,131 +1,96 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { ArrowLeft, Lock, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, ArrowLeft, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { authService } from '@/lib/auth';
+import { Logo } from '@/components/brand/Logo';
+import { OtpInput } from '@/components/auth/OtpInput';
 
-const schema = z.object({
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  confirm: z.string(),
-}).refine((d) => d.password === d.confirm, {
-  message: 'Passwords do not match',
-  path: ['confirm'],
-});
-type FormData = z.infer<typeof schema>;
-
-export default function ResetPasswordPage() {
+function ResetPasswordInner() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const token = searchParams.get('token') || '';
-  const [done, setDone] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const params = useSearchParams();
+  const email = params.get('email') || '';
+
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(schema),
-  });
-
-  const onSubmit = async (data: FormData) => {
-    if (!token) { toast.error('Invalid or missing reset token'); return; }
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code.length !== 6) { toast.error('Enter the 6-digit code'); return; }
+    if (password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
     setLoading(true);
     try {
-      await authService.resetPassword(token, data.password);
-      setDone(true);
-    } catch {
-      toast.error('Reset link is invalid or has expired. Please request a new one.');
+      await authService.resetPassword(email, code, password);
+      toast.success('Password reset! You can now sign in.');
+      router.push('/auth/login');
+    } catch (err) {
+      toast.error((err as Error).message || 'Invalid or expired code');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-white flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-white p-4">
       <div className="w-full max-w-md">
-        <Link href="/auth/login" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 mb-8 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back to sign in
+        <Link href="/auth/login" className="mb-8 inline-flex items-center gap-2 text-sm text-slate-500 transition-colors hover:text-slate-800">
+          <ArrowLeft className="h-4 w-4" /> Back to sign in
         </Link>
 
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
-          {!done ? (
-            <>
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-10 h-10 rounded-xl dynax-gradient flex items-center justify-center">
-                  <Lock className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="font-display font-bold text-xl text-slate-900">Set new password</h1>
-                  <p className="text-slate-500 text-sm">Choose a strong password for your account</p>
-                </div>
-              </div>
+        <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-xl">
+          <div className="mb-5 flex justify-center"><Logo size={34} /></div>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
+            <ShieldCheck className="h-7 w-7 text-dynax-blue" />
+          </div>
+          <h1 className="text-center font-display text-xl font-bold text-slate-900">Reset your password</h1>
+          <p className="mt-2 text-center text-sm text-slate-500">
+            Enter the code sent{email ? <> to <strong className="text-slate-700">{email}</strong></> : ''} and choose a new password.
+          </p>
 
-              {!token && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                  Invalid reset link. Please request a new password reset.
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">New password</label>
-                  <div className="relative">
-                    <input
-                      {...register('password')}
-                      type={showPwd ? 'text' : 'password'}
-                      placeholder="Min 8 characters"
-                      className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition text-sm pr-10"
-                    />
-                    <button type="button" onClick={() => setShowPwd(!showPwd)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                      {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm password</label>
-                  <input
-                    {...register('confirm')}
-                    type={showPwd ? 'text' : 'password'}
-                    placeholder="Repeat your password"
-                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition text-sm"
-                  />
-                  {errors.confirm && <p className="text-red-500 text-xs mt-1">{errors.confirm.message}</p>}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || !token}
-                  className="w-full py-3 rounded-xl dynax-gradient text-white font-semibold text-sm hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-blue-200"
-                >
-                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {loading ? 'Updating…' : 'Update Password'}
+          <form onSubmit={onSubmit} className="mt-6 space-y-5">
+            <OtpInput value={code} onChange={setCode} />
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">New password</label>
+              <div className="relative">
+                <input
+                  type={showPwd ? 'text' : 'password'} required value={password}
+                  onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters"
+                  className="w-full rounded-lg border border-slate-200 px-4 py-2.5 pr-10 text-sm outline-none transition focus:border-dynax-blue focus:ring-2 focus:ring-blue-100"
+                />
+                <button type="button" onClick={() => setShowPwd((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
-              </form>
-            </>
-          ) : (
-            <div className="text-center py-4">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <h2 className="font-display font-bold text-xl text-slate-900 mb-2">Password updated!</h2>
-              <p className="text-slate-500 text-sm mb-6">Your password has been changed successfully. Sign in with your new password.</p>
-              <Link
-                href="/auth/login"
-                className="block w-full py-3 rounded-xl dynax-gradient text-white text-sm font-semibold text-center hover:opacity-90"
-              >
-                Sign In Now →
-              </Link>
             </div>
-          )}
+            <button
+              type="submit" disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-dynax-blue py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:bg-dynax-blue-dark disabled:opacity-60"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? 'Resetting…' : 'Reset password'}
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-slate-500">
+            Didn&apos;t get a code?{' '}
+            <Link href="/auth/forgot-password" className="font-medium text-dynax-blue hover:underline">Request again</Link>
+          </p>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>}>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }

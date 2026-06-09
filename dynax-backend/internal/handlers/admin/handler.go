@@ -1,10 +1,10 @@
 package admin
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
 	"github.com/dynalimb/dynax-backend/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
 // Handler handles admin-only endpoints.

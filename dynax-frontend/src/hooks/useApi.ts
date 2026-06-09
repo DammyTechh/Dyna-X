@@ -58,6 +58,17 @@ export const useRegister = () =>
       authService.register(payload),
   });
 
+export const useVerifyEmail = () =>
+  useMutation({
+    mutationFn: (payload: { email: string; code: string }) =>
+      authService.verifyEmail(payload.email, payload.code),
+  });
+
+export const useResendVerification = () =>
+  useMutation({
+    mutationFn: (email: string) => authService.resendVerification(email),
+  });
+
 export const useLogout = () => {
   const { clearAuth } = useAuthStore();
   const qc = useQueryClient();
@@ -115,11 +126,17 @@ export const useUpdatePatientProfile = () => {
 export const useConnectToProfessional = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (professional_code: string) =>
-      apiPost('/patient/connect', { professional_code }),
+    mutationFn: (pin: string) => apiPost('/patient/connect', { pin }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.myProfessionals }),
   });
 };
+
+// Professional issues a one-time DX-PIN to a patient's email.
+export const useShareDxPin = () =>
+  useMutation({
+    mutationFn: (patient_email: string) =>
+      apiPost<{ sent: boolean }>('/professional/share-code', { patient_email }),
+  });
 
 export const useMyProfessionals = () =>
   useQuery<ProfessionalProfile[]>({ queryKey: qk.myProfessionals, queryFn: () => apiGet('/patient/professionals') });
@@ -354,3 +371,39 @@ export const useAdminAnalytics = (period = 'month') =>
 
 export const useAdminAuditLogs = (params?: PaginationParams) =>
   useQuery({ queryKey: qk.adminAuditLogs(params), queryFn: () => apiGetPaginated('/admin/audit-logs', params as Record<string, unknown>) });
+
+// ─── 3D editor: device share + comments ───────────────────────────────────────
+export interface DeviceShare {
+  id: string; device_id: string; token: string; permission: string; url?: string; created_at: string;
+}
+export interface DeviceComment {
+  id: string; device_id: string; author_id: string; author_name: string; author_role: string; content: string; created_at: string;
+}
+
+export const useDeviceComments = (deviceId?: string) =>
+  useQuery({
+    queryKey: ['device-comments', deviceId],
+    queryFn: () => apiGet<DeviceComment[]>(`/emr/devices/${deviceId}/comments`),
+    enabled: !!deviceId,
+  });
+
+export const useAddDeviceComment = (deviceId?: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (content: string) => apiPost<DeviceComment>(`/emr/devices/${deviceId}/comments`, { content }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['device-comments', deviceId] }),
+  });
+};
+
+export const useCreateDeviceShare = (deviceId?: string) =>
+  useMutation({
+    mutationFn: (permission: string) => apiPost<DeviceShare>(`/emr/devices/${deviceId}/share`, { permission }),
+  });
+
+export const useSharedDevice = (token?: string) =>
+  useQuery({
+    queryKey: ['shared-device', token],
+    queryFn: () => apiGet<{ device: Record<string, unknown>; permission: string }>(`/shared/${token}`),
+    enabled: !!token,
+    retry: false,
+  });

@@ -3,59 +3,38 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import {
-  useProfessionalProfile, useGeneratePersonalCode, useMyPatients,
-  useProfessionalAppointments, useProfessionalSessions,
+  useProfessionalProfile, useMyPatients,
+  useProfessionalAppointments, useProfessionalSessions, useShareDxPin,
 } from '@/hooks/useApi';
 import {
-  Users, Calendar, Activity, Copy, RefreshCw, Mail, Check,
+  Users, Calendar, Mail,
   Loader2, Clock, Video, MapPin, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isToday } from 'date-fns';
 import { getRoleLabel } from '@/lib/routing';
-import { cn } from '@/lib/utils';
 
 export default function ProfessionalDashboard() {
   const { data: profile, isLoading } = useProfessionalProfile();
   const { data: patients } = useMyPatients({ page: 1, page_size: 5 });
   const { data: appointments } = useProfessionalAppointments({ page: 1, page_size: 5 });
   const { data: sessions } = useProfessionalSessions({ page: 1, page_size: 5 });
-  const { mutateAsync: generateCode, isPending: generating } = useGeneratePersonalCode();
+  const { mutateAsync: shareDxPin } = useShareDxPin();
 
-  const [copied, setCopied] = useState(false);
   const [emailTarget, setEmailTarget] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
 
-  const code = profile?.personal_code;
-
-  const handleGenerateCode = async () => {
-    try {
-      await generateCode();
-      toast.success('New personal code generated!');
-    } catch {
-      toast.error('Failed to generate code');
-    }
-  };
-
-  const handleCopyCode = () => {
-    if (!code) return;
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast.success('Code copied to clipboard!');
-  };
-
   const handleEmailCode = async () => {
-    if (!emailTarget || !code) return;
+    if (!emailTarget) return;
     setSendingEmail(true);
     try {
-      // POST to backend which sends via Resend
-      const { default: api } = await import('@/lib/api');
-      await api.post('/professional/send-code-email', { email: emailTarget, code });
-      toast.success(`Code emailed to ${emailTarget}`);
+      // Backend generates a one-time DX-PIN tied to this patient's email and
+      // emails it to them via Resend.
+      await shareDxPin(emailTarget);
+      toast.success(`DX-PIN emailed to ${emailTarget}`);
       setEmailTarget('');
     } catch {
-      toast.error('Failed to send email. Try copying the code manually.');
+      toast.error('Failed to send the DX-PIN. Please try again.');
     } finally {
       setSendingEmail(false);
     }
@@ -109,43 +88,22 @@ export default function ProfessionalDashboard() {
         <div className="grid md:grid-cols-2 gap-6">
           {/* Personal Code / PIN Panel */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h2 className="font-display font-semibold text-slate-900 mb-1">Your Patient Connection Code</h2>
+            <h2 className="font-display font-semibold text-slate-900 mb-1">Connect a Patient</h2>
             <p className="text-slate-500 text-xs mb-5">
-              Share this code with patients so they can connect to you. Email it directly or copy it.
+              Enter a patient&apos;s email and we&apos;ll send them a one-time DX-PIN. When they
+              enter it on their dashboard, they&apos;re matched to you automatically.
             </p>
 
-            {/* Code display */}
             <div className="bg-gradient-to-br from-slate-900 to-slate-700 rounded-xl p-5 mb-4">
-              <p className="text-slate-400 text-xs mb-2 uppercase tracking-wider font-medium">Your DX-PIN</p>
-              {code ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-mono text-2xl font-bold text-white tracking-widest">{code}</span>
-                  <button
-                    onClick={handleCopyCode}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-medium transition-colors"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-              ) : (
-                <p className="text-slate-400 text-sm">No code generated yet</p>
-              )}
+              <p className="text-slate-200 text-sm leading-relaxed">
+                DX-PINs are one-time and expire after 7 days. Generate a fresh one for each
+                patient you&apos;ve met with.
+              </p>
             </div>
 
-            {/* Generate new code */}
-            <button
-              onClick={handleGenerateCode}
-              disabled={generating}
-              className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 font-medium mb-5 transition-colors disabled:opacity-60"
-            >
-              <RefreshCw className={cn('w-4 h-4', generating && 'animate-spin')} />
-              {generating ? 'Generating…' : 'Generate new code'}
-            </button>
-
-            {/* Email code to patient */}
+            {/* Email a DX-PIN to a patient */}
             <div>
-              <p className="text-sm font-medium text-slate-700 mb-2">Email code to a patient</p>
+              <p className="text-sm font-medium text-slate-700 mb-2">Send a DX-PIN to a patient</p>
               <div className="flex gap-2">
                 <input
                   type="email"
@@ -156,7 +114,7 @@ export default function ProfessionalDashboard() {
                 />
                 <button
                   onClick={handleEmailCode}
-                  disabled={sendingEmail || !emailTarget || !code}
+                  disabled={sendingEmail || !emailTarget}
                   className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors"
                 >
                   {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}

@@ -1,10 +1,10 @@
 package patient
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
 	"github.com/dynalimb/dynax-backend/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
 // Handler handles patient-facing endpoints.
@@ -96,8 +96,15 @@ func (h *Handler) ConnectToProfessional(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	conn, err := h.service.ConnectToProfessional(userID, &req)
 	if err != nil {
-		if err.Error() == "professional_not_found" {
-			response.NotFound(c, "Professional with that code")
+		switch err.Error() {
+		case "professional_not_found":
+			response.NotFound(c, "Professional with that email")
+			return
+		case "invalid_or_expired_pin":
+			response.BadRequest(c, "INVALID_PIN", "That DX-PIN is invalid, already used, or has expired")
+			return
+		case "invalid_payload":
+			response.BadRequest(c, "INVALID_PAYLOAD", "Provide the professional's email and your DX-PIN")
 			return
 		}
 		response.InternalError(c, err)

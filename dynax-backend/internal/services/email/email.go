@@ -61,6 +61,53 @@ func (c *Client) SendWelcome(to, name, role string) error {
 	return c.send(to, subject, html)
 }
 
+// otpEmail builds a branded OTP email body.
+func (c *Client) otpEmail(name, code, heading, intro string) string {
+	greeting := "there"
+	if name != "" {
+		greeting = name
+	}
+	return fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<body style="font-family:Inter,Arial,sans-serif;background:#f1f5f9;margin:0;padding:0;">
+  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:16px;padding:40px;">
+    <img src="https://dynalimb.com/logo.png" alt="DynaX" style="height:40px;margin-bottom:28px;">
+    <h1 style="color:#0f172a;font-size:22px;margin:0 0 8px;">%s</h1>
+    <p style="color:#475569;font-size:15px;line-height:1.6;">Hi %s, %s</p>
+    <div style="margin:28px 0;text-align:center;">
+      <div style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;
+                  padding:18px 28px;font-size:34px;font-weight:700;letter-spacing:10px;color:#2563eb;">
+        %s
+      </div>
+    </div>
+    <p style="color:#64748b;font-size:14px;line-height:1.6;">
+      This code expires in <strong>15 minutes</strong>. For your security, never share it with anyone.
+    </p>
+    <p style="color:#94a3b8;font-size:13px;margin-top:28px;">
+      If you didn't request this, you can safely ignore this email.
+    </p>
+  </div>
+</body>
+</html>`, heading, greeting, intro, code)
+}
+
+// SendVerificationOTP emails a 6-digit account verification code.
+func (c *Client) SendVerificationOTP(to, name, code string) error {
+	html := c.otpEmail(name, code,
+		"Verify your email",
+		"use the code below to confirm your email address and activate your DynaX account.")
+	return c.send(to, "Your DynaX verification code", html)
+}
+
+// SendPasswordResetOTP emails a 6-digit password-reset code.
+func (c *Client) SendPasswordResetOTP(to, name, code string) error {
+	html := c.otpEmail(name, code,
+		"Reset your password",
+		"we received a request to reset your DynaX password. Use the code below to continue.")
+	return c.send(to, "Your DynaX password reset code", html)
+}
+
 // SendPasswordReset sends a password reset link.
 func (c *Client) SendPasswordReset(to, name, resetURL string) error {
 	subject := "Reset Your DynaX Password"
@@ -216,4 +263,39 @@ func (c *Client) send(to, subject, html string) error {
 
 	logger.Get().Info().Str("id", resp.Id).Str("to", to).Str("subject", subject).Msg("email sent")
 	return nil
+}
+
+// SendDxPin emails a professional's DX PIN to a patient they have met, so the
+// patient can enter it on their dashboard to connect.
+func (c *Client) SendDxPin(to, professionalName, professionalEmail, code string) error {
+	subject := fmt.Sprintf("Your DynaX connection PIN from %s", professionalName)
+	html := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<body style="font-family:Inter,sans-serif;background:#f5f5f5;margin:0;padding:0;">
+  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;padding:40px;">
+    <img src="https://i.imgur.com/pHhGO2a.png" alt="DynaX" style="height:40px;margin-bottom:32px;">
+    <h1 style="color:#1a1a1a;font-size:24px;">Connect with %s on DynaX</h1>
+    <p style="color:#555;font-size:16px;line-height:1.6;">
+      %s (%s) has invited you to connect on DynaX. Sign in (or create your free
+      patient account), open your dashboard, and enter the DX-PIN below to link your care.
+    </p>
+    <div style="text-align:center;margin:28px 0;">
+      <span style="display:inline-block;background:#0d9488;color:#fff;font-size:30px;
+                   letter-spacing:6px;font-weight:700;padding:16px 28px;border-radius:10px;">%s</span>
+    </div>
+    <p style="color:#555;font-size:14px;">You only need the PIN above to connect.</p>
+    <a href="https://dynax.app/patient"
+       style="display:inline-block;background:#2563eb;color:#fff;padding:14px 28px;
+              border-radius:8px;text-decoration:none;font-weight:600;">
+      Go to my dashboard →
+    </a>
+    <p style="color:#999;font-size:13px;margin-top:24px;">
+      If you don't recognise this invitation you can safely ignore this email.
+    </p>
+  </div>
+</body>
+</html>`, professionalName, professionalName, professionalEmail, code)
+
+	return c.send(to, subject, html)
 }

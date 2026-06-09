@@ -25,7 +25,7 @@ services:
     container_name: dynax_api
     env_file: .env
     environment:
-      DATABASE_URL: postgres://postgres:Damilare143@db.mpalgyyaffwyqaabdinh.supabase.co:5432/postgres
+      DATABASE_URL: postgresql://postgres.mpalgyyaffwyqaabdinh:DammyTech143@aws-1-eu-central-2.pooler.supabase.com:5432/postgres?sslmode=require
       REDIS_URL: redis://redis:6379
       REDIS_PASSWORD: devpassword
     ports:

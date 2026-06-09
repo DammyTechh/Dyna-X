@@ -7,17 +7,25 @@ import { OrbitControls, Grid, Environment, PerspectiveCamera } from '@react-thre
 import { MessageCircle, Send, Eye, Edit3, Lock, Loader2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useSharedDevice } from '@/hooks/useApi';
 
 type Permission = 'view' | 'comment' | 'annotate';
 
-// ── Infer the permission from the token (in production: fetch from API) ───────
+// ── Resolve the share token against the backend ──────────────────────────────
 function useShareData(token: string) {
-  // TODO: apiGet(`/share/${token}`) — returns { permission, case_name, owner_name, comments }
+  const { data, isLoading, error } = useSharedDevice(token);
+  const device = (data?.device || {}) as Record<string, unknown>;
+  const deviceType = typeof device.device_type === 'string' ? device.device_type : '';
+  const bodyRegion = typeof device.body_region === 'string' ? device.body_region : '';
+  const caseName = deviceType
+    ? `${deviceType}${bodyRegion ? ' — ' + bodyRegion : ''}`
+    : 'Shared 3D scan';
   return {
-    permission: 'comment' as Permission,
-    caseName: 'Transtibial Prosthesis — Case #2024-089',
-    ownerName: 'Dr. Emeka Obi (Prosthetist)',
-    loading: false,
+    permission: ((data?.permission as Permission) || 'view') as Permission,
+    caseName,
+    ownerName: 'Shared by your care team',
+    loading: isLoading,
+    invalid: !!error,
   };
 }
 
@@ -72,9 +80,7 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
   const { permission, caseName, ownerName, loading } = useShareData(token);
 
   const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([
-    { id: '1', author_name: 'Dr. Emeka Obi', content: 'Initial review — please check distal end clearance.', created_at: new Date().toISOString() },
-  ]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [text, setText] = useState('');
   const [name, setName] = useState('');
   const [submitted, setSubmitted] = useState(false);

@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	CtxUserID  = "user_id"
-	CtxEmail   = "email"
-	CtxRole    = "role"
-	CtxClaims  = "claims"
+	CtxUserID = "user_id"
+	CtxEmail  = "email"
+	CtxRole   = "role"
+	CtxClaims = "claims"
 )
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────

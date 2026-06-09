@@ -10,6 +10,7 @@ import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLogin } from '@/hooks/useApi';
 import { getDashboardRoute } from '@/lib/routing';
+import { Logo } from '@/components/brand/Logo';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -34,7 +35,13 @@ export default function LoginPage() {
       toast.success(`Welcome back, ${res.user.email.split('@')[0]}!`);
       router.push(redirect || getDashboardRoute(res.user.role));
     } catch (err: unknown) {
-      toast.error((err as Error).message || 'Invalid email or password');
+      const msg = (err as Error).message || 'Invalid email or password';
+      if (/verify/i.test(msg)) {
+        toast.error('Please verify your email first.');
+        router.push(`/auth/verify-email?email=${encodeURIComponent(data.email)}`);
+        return;
+      }
+      toast.error(msg);
     }
   };
 
@@ -49,9 +56,7 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl dynax-gradient flex items-center justify-center">
-              <span className="text-white font-display font-bold">DX</span>
-            </div>
+            <Logo size={40} showWord={false} />
             <div>
               <h1 className="font-display font-bold text-xl text-slate-900">Sign in to DynaX</h1>
               <p className="text-slate-500 text-sm">Access your care dashboard</p>

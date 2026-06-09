@@ -47,13 +47,16 @@ import (
 	aiH "github.com/dynalimb/dynax-backend/internal/handlers/ai"
 	authH "github.com/dynalimb/dynax-backend/internal/handlers/auth"
 	emrH "github.com/dynalimb/dynax-backend/internal/handlers/emr"
-	msgH "github.com/dynalimb/dynax-backend/internal/handlers/sessions"
 	notifH "github.com/dynalimb/dynax-backend/internal/handlers/notifications"
 	patientH "github.com/dynalimb/dynax-backend/internal/handlers/patient"
 	profH "github.com/dynalimb/dynax-backend/internal/handlers/professional"
+	msgH "github.com/dynalimb/dynax-backend/internal/handlers/sessions"
 	therapayH "github.com/dynalimb/dynax-backend/internal/handlers/therapay"
+	"github.com/dynalimb/dynax-backend/internal/repository"
+	"github.com/dynalimb/dynax-backend/internal/repository/db"
 	"github.com/dynalimb/dynax-backend/internal/server"
 	"github.com/dynalimb/dynax-backend/internal/services"
+	"github.com/dynalimb/dynax-backend/internal/services/email"
 	"github.com/dynalimb/dynax-backend/pkg/logger"
 )
 
@@ -74,18 +77,37 @@ func main() {
 	// ── JWT ───────────────────────────────────────────────────────────────────
 	jwtMgr := auth.NewManager(cfg.JWT.Secret, cfg.JWT.ExpiryHours, cfg.JWT.RefreshExpiryHours)
 
-	// ── Services (wire real implementations here) ─────────────────────────────
-	// In production these would connect to Supabase via pgx + supabase-go.
-	// The service layer is defined by the interfaces in each handler package.
-	svcAuth := services.NewAuthService(cfg, jwtMgr)
-	svcProf := services.NewProfessionalService(cfg)
-	svcPatient := services.NewPatientService(cfg)
-	svcEMR := services.NewEMRService(cfg)
-	svcTheraPay := services.NewTherapayService(cfg)
-	svcAdmin := services.NewAdminService(cfg)
-	svcNotif := services.NewNotificationService(cfg)
+	// ── Database ──────────────────────────────────────────────────────────────
+	pool, err := db.Connect(cfg)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to database")
+	}
+	defer pool.Close()
+
+	// ── Repositories & email ──────────────────────────────────────────────────
+	userRepo := repository.NewUserRepository(pool)
+	profRepo := repository.NewProfessionalRepository(pool)
+	tokenRepo := repository.NewTokenRepository(pool)
+	apptRepo := repository.NewAppointmentRepository(pool)
+	sessionRepo := repository.NewSessionRepository(pool)
+	connRepo := repository.NewConnectionRepository(pool)
+	emrRepo := repository.NewEMRRepository(pool)
+	billingRepo := repository.NewBillingRepository(pool)
+	adminRepo := repository.NewAdminRepository(pool)
+	msgRepo := repository.NewMessagingRepository(pool)
+	notifRepo := repository.NewNotificationRepository(pool)
+	mailer := email.New(cfg)
+
+	// ── Services ──────────────────────────────────────────────────────────────
+	svcAuth := services.NewAuthService(cfg, jwtMgr, userRepo, profRepo, tokenRepo, mailer)
+	svcProf := services.NewProfessionalService(cfg, userRepo, profRepo, apptRepo, sessionRepo, connRepo, mailer)
+	svcPatient := services.NewPatientService(cfg, userRepo, profRepo, apptRepo, sessionRepo, connRepo, emrRepo, mailer)
+	svcEMR := services.NewEMRService(cfg, emrRepo, userRepo, notifRepo)
+	svcTheraPay := services.NewTherapayService(cfg, billingRepo, notifRepo)
+	svcAdmin := services.NewAdminService(cfg, adminRepo, userRepo, profRepo, connRepo, notifRepo, mailer)
+	svcNotif := services.NewNotificationService(cfg, notifRepo)
 	svcAI := services.NewAIService(cfg)
-	svcMsg := services.NewMessagingService(cfg)
+	svcMsg := services.NewMessagingService(cfg, msgRepo, userRepo)
 
 	// ── Handlers ──────────────────────────────────────────────────────────────
 	handlers := &server.Handlers{

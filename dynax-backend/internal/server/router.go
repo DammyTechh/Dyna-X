@@ -94,7 +94,12 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 		authGroup.POST("/refresh", h.Auth.RefreshToken)
 		authGroup.POST("/forgot-password", h.Auth.ForgotPassword)
 		authGroup.POST("/reset-password", h.Auth.ResetPassword)
+		authGroup.POST("/verify-email", h.Auth.VerifyEmail)
+		authGroup.POST("/resend-verification", h.Auth.ResendVerification)
 	}
+
+	// ── Public share view (no JWT) ────────────────────────────────────────────
+	v1.GET("/shared/:token", h.EMR.GetSharedDevice)
 
 	// ── Protected routes (JWT required) ───────────────────────────────────────
 	protected := v1.Group("")
@@ -165,6 +170,7 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			professional.GET("/profile", h.Professional.GetProfile)
 			professional.PATCH("/profile", h.Professional.UpdateProfile)
 			professional.POST("/generate-code", h.Professional.GeneratePersonalCode)
+			professional.POST("/share-code", h.Professional.ShareCode)
 
 			// Patients under this professional
 			professional.GET("/patients", h.Professional.ListPatients)
@@ -202,6 +208,9 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			emr.POST("/devices", h.EMR.CreateDeviceMeasurement)
 			emr.GET("/devices", h.EMR.ListDeviceMeasurements)
 			emr.PATCH("/devices/:device_id/status", h.EMR.UpdateDeviceStatus)
+			emr.POST("/devices/:device_id/share", h.EMR.CreateDeviceShare)
+			emr.GET("/devices/:device_id/comments", h.EMR.ListDeviceComments)
+			emr.POST("/devices/:device_id/comments", h.EMR.AddDeviceComment)
 		}
 
 		// ── TheraPay routes ───────────────────────────────────────────────────

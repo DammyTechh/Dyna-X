@@ -101,6 +101,44 @@
   .animate-in {
     animation: fade-in 0.35s ease-out;
   }
+
+  /* ── 3D float cards ──────────────────────────────────────────────────────
+     Subtle, mature depth: a soft tilt + lift on hover, primary-tinted glow.
+     Use `.card-3d` on a container; wrap a grid in `.cards-3d` for perspective. */
+  .cards-3d {
+    perspective: 1400px;
+  }
+  .card-3d {
+    transform-style: preserve-3d;
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 0.45s ease;
+    will-change: transform;
+  }
+  @media (hover: hover) and (min-width: 768px) {
+    .card-3d:hover {
+      transform: translateY(-8px) rotateX(4deg) rotateY(-4deg) scale(1.015);
+      box-shadow:
+        0 24px 50px -12px rgba(37, 99, 235, 0.28),
+        0 8px 20px -8px rgba(13, 148, 136, 0.22);
+      border-color: rgba(37, 99, 235, 0.35);
+    }
+  }
+  /* gentle resting float so cards feel alive even before hover */
+  .card-float {
+    animation: card-bob 6s ease-in-out infinite;
+  }
+  .card-float:nth-child(2n) { animation-delay: -2s; }
+  .card-float:nth-child(3n) { animation-delay: -4s; }
+  @media (prefers-reduced-motion: reduce) {
+    .card-float { animation: none; }
+    .card-3d { transition: none; }
+  }
+}
+
+@keyframes card-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
 /* 3D Editor global styles */

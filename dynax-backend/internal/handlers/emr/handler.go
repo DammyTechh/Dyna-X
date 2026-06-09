@@ -1,10 +1,11 @@
 package emr
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
+	"github.com/dynalimb/dynax-backend/internal/repository"
 	"github.com/dynalimb/dynax-backend/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
 // Handler handles EMR / clinical notes endpoints.
@@ -24,6 +25,10 @@ type Service interface {
 	CreateDeviceMeasurement(professionalID string, req *models.CreateDeviceMeasurementRequest) (*models.DeviceMeasurement, error)
 	GetDeviceMeasurements(professionalID, patientID string) ([]models.DeviceMeasurement, error)
 	UpdateDeviceStatus(professionalID, deviceID, status string) (*models.DeviceMeasurement, error)
+	CreateDeviceShare(professionalID, deviceID, permission string) (*repository.DeviceShare, error)
+	GetSharedDevice(token string) (*models.DeviceMeasurement, string, error)
+	ListDeviceComments(deviceID string) ([]repository.DeviceComment, error)
+	AddDeviceComment(deviceID, authorID, authorRole, content string) (*repository.DeviceComment, error)
 }
 
 func NewHandler(svc Service) *Handler {
@@ -327,4 +332,69 @@ func (h *Handler) UpdateDeviceStatus(c *gin.Context) {
 		return
 	}
 	response.OK(c, "Device status updated", device)
+}
+
+// ─── Device share & comments (3D editor collaboration) ───────────────────────
+
+type createShareRequest struct {
+	Permission string `json:"permission"`
+}
+
+// CreateDeviceShare generates a share link for a device scan.
+// @Router /emr/devices/{device_id}/share [post]
+func (h *Handler) CreateDeviceShare(c *gin.Context) {
+	deviceID := c.Param("device_id")
+	var req createShareRequest
+	_ = c.ShouldBindJSON(&req)
+	if req.Permission == "" {
+		req.Permission = "view"
+	}
+	share, err := h.service.CreateDeviceShare(middleware.GetUserID(c), deviceID, req.Permission)
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.Created(c, "Share link created", share)
+}
+
+// GetSharedDevice resolves a public share token to its device + permission.
+// @Router /shared/{token} [get]
+func (h *Handler) GetSharedDevice(c *gin.Context) {
+	device, permission, err := h.service.GetSharedDevice(c.Param("token"))
+	if err != nil || device == nil {
+		response.NotFound(c, "Share link is invalid or has expired")
+		return
+	}
+	response.OK(c, "Shared device", gin.H{"device": device, "permission": permission})
+}
+
+// ListDeviceComments returns comments on a device scan.
+// @Router /emr/devices/{device_id}/comments [get]
+func (h *Handler) ListDeviceComments(c *gin.Context) {
+	comments, err := h.service.ListDeviceComments(c.Param("device_id"))
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Comments", comments)
+}
+
+type addCommentRequest struct {
+	Content string `json:"content"`
+}
+
+// AddDeviceComment adds a comment to a device scan.
+// @Router /emr/devices/{device_id}/comments [post]
+func (h *Handler) AddDeviceComment(c *gin.Context) {
+	var req addCommentRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Content == "" {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Comment content is required")
+		return
+	}
+	comment, err := h.service.AddDeviceComment(c.Param("device_id"), middleware.GetUserID(c), middleware.GetRole(c), req.Content)
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.Created(c, "Comment added", comment)
 }
