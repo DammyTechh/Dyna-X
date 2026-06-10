@@ -144,7 +144,7 @@ export default function SharePage({ params }: { params: { token: string } }) {
 
         {/* Comments sidebar */}
         {showComments && canComment && (
-          <div className="w-72 bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden">
+          <div className="fixed sm:relative inset-y-0 right-0 z-40 sm:z-auto w-full max-w-sm sm:max-w-none sm:inset-auto sm:w-72 bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden shadow-2xl sm:shadow-none">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
               <h3 className="font-semibold text-sm">Comments</h3>
               <button onClick={() => setShowComments(false)} className="text-slate-400 hover:text-white">

@@ -371,7 +371,7 @@ function EditorInner() {
 
         {/* Properties / editing parameters panel */}
         {showProps && (
-          <div className="w-80 bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden">
+          <div className="fixed sm:relative inset-y-0 right-0 z-40 sm:z-auto w-full max-w-sm sm:max-w-none sm:inset-auto sm:w-80 bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden shadow-2xl sm:shadow-none">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
               <h3 className="font-semibold text-sm flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-indigo-400" /> Model Properties
@@ -456,7 +456,7 @@ function EditorInner() {
 
         {/* Share panel */}
         {showShare && (
-          <div className="w-80 bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden">
+          <div className="fixed sm:relative inset-y-0 right-0 z-40 sm:z-auto w-full max-w-sm sm:max-w-none sm:inset-auto sm:w-80 bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden shadow-2xl sm:shadow-none">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
               <h3 className="font-semibold text-sm">Share 3D Scan</h3>
               <button onClick={() => setShowShare(false)} className="text-slate-400 hover:text-white">
@@ -583,7 +583,7 @@ function EditorInner() {
 
         {/* Comments panel */}
         {showComments && (
-          <div className="w-80 bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden">
+          <div className="fixed sm:relative inset-y-0 right-0 z-40 sm:z-auto w-full max-w-sm sm:max-w-none sm:inset-auto sm:w-80 bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden shadow-2xl sm:shadow-none">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
               <h3 className="font-semibold text-sm">Comments ({comments.length})</h3>
               <button onClick={() => setShowComments(false)} className="text-slate-400 hover:text-white">
