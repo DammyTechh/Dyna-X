@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useCarePlans, useCreateCarePlan, useMyPatients } from '@/hooks/useApi';
@@ -29,7 +29,7 @@ const STATUS_COLORS = {
   cancelled: 'bg-red-100 text-red-600 border-red-200',
 };
 
-export default function CarePlansPage() {
+function CarePlansInner() {
   const searchParams = useSearchParams();
   const defaultPatient = searchParams.get('patient') || '';
   const [patientId, setPatientId] = useState(defaultPatient);
@@ -208,5 +208,13 @@ export default function CarePlansPage() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function CarePlansPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-slate-400" /></div>}>
+      <CarePlansInner />
+    </Suspense>
   );
 }

@@ -41,7 +41,9 @@ func CORS(cfg *config.Config) gin.HandlerFunc {
 			if allowed[origin] {
 				return true
 			}
-			if strings.HasSuffix(origin, ".vercel.app") &&
+			// Permit platform preview subdomains (random per branch/commit) so
+			// previews work without redeploying the backend.
+			if (strings.HasSuffix(origin, ".vercel.app") || strings.HasSuffix(origin, ".netlify.app")) &&
 				(strings.HasPrefix(origin, "https://") || strings.HasPrefix(origin, "http://")) {
 				return true
 			}
