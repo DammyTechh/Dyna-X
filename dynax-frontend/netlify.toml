@@ -1,0 +1,19 @@
+# ─── Netlify configuration for the DynaX frontend (Next.js 14) ───────────────
+# Netlify builds from your Git repo. The official Next.js runtime plugin below
+# handles SSR, routing, image optimization and the App Router automatically.
+
+[build]
+  # The frontend lives at the repo root. If your repo has the Next app in a
+  # subfolder instead, set "base" to that folder (e.g. base = "frontend").
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  # Next.js 14 needs Node 18+. Pin a known-good version.
+  NODE_VERSION = "20"
+  # Don't fail the build on optional native build steps.
+  NPM_FLAGS = "--no-audit --no-fund"
+
+# Official Netlify Next.js runtime — Netlify installs this automatically.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
