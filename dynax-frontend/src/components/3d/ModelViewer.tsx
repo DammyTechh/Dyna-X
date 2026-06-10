@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  forwardRef, useImperativeHandle, useRef, useEffect, useState, useCallback,
+  useImperativeHandle, useRef, useEffect, useState, useCallback,
 } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -36,6 +36,9 @@ interface Props {
   readOnly?: boolean;
   params?: Partial<ViewerParams>;
   onLoaded?: (info: { vertices: number; triangles: number }) => void;
+  // Imperative handle passed as a normal prop (not React `ref`) so the
+  // component can be loaded with next/dynamic({ ssr: false }).
+  apiRef?: React.MutableRefObject<ViewerHandle | null>;
 }
 
 const DEFAULTS: ViewerParams = {
@@ -50,10 +53,9 @@ const DEFAULTS: ViewerParams = {
   lightIntensity: 1,
 };
 
-const ModelViewer = forwardRef<ViewerHandle, Props>(function ModelViewer(
-  { uploadedFile, modelUrl, readOnly = false, params, onLoaded },
-  ref,
-) {
+export default function ModelViewer({
+  uploadedFile, modelUrl, readOnly = false, params, onLoaded, apiRef,
+}: Props) {
   const p: ViewerParams = { ...DEFAULTS, ...params };
 
   const mountRef = useRef<HTMLDivElement>(null);
@@ -133,7 +135,7 @@ const ModelViewer = forwardRef<ViewerHandle, Props>(function ModelViewer(
     a.href = url; a.download = filename; a.click();
   }, []);
 
-  useImperativeHandle(ref, () => ({
+  useImperativeHandle(apiRef, () => ({
     resetView,
     zoomIn: () => dolly(0.82),
     zoomOut: () => dolly(1.22),
@@ -413,6 +415,4 @@ const ModelViewer = forwardRef<ViewerHandle, Props>(function ModelViewer(
       )}
     </div>
   );
-});
-
-export default ModelViewer;
+}

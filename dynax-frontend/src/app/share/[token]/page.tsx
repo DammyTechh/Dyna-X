@@ -9,7 +9,15 @@ import { tokenStore } from '@/lib/api';
 import {
   useSharedDevice, useDeviceComments, useAddDeviceCommentById,
 } from '@/hooks/useApi';
-import ModelViewer from '@/components/3d/ModelViewer';
+import dynamic from 'next/dynamic';
+const ModelViewer = dynamic(() => import('@/components/3d/ModelViewer'), {
+  ssr: false,
+  loading: () => (
+    <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+      <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+    </div>
+  ),
+});
 
 type Permission = 'view' | 'comment' | 'annotate';
 

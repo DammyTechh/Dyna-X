@@ -15,7 +15,19 @@ import { tokenStore } from '@/lib/api';
 import { Logo } from '@/components/brand/Logo';
 import { useDeviceComments, useAddDeviceComment, useCreateDeviceShareById, useCreateDeviceMeasurement, useMyPatients } from '@/hooks/useApi';
 import { uploadScan, storageConfigured } from '@/lib/storage';
-import ModelViewer, { type ViewerHandle, type ViewerParams } from '@/components/3d/ModelViewer';
+import dynamic from 'next/dynamic';
+import { type ViewerHandle, type ViewerParams } from '@/components/3d/ModelViewer';
+
+// Three.js viewer is heavy and browser-only — load it client-side to avoid
+// any SSR/hydration issues affecting the rest of the editor UI.
+const ModelViewer = dynamic(() => import('@/components/3d/ModelViewer'), {
+  ssr: false,
+  loading: () => (
+    <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+      <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+    </div>
+  ),
+});
 
 const ACCEPTED_3D = '.glb,.gltf,.stl,.obj';
 
@@ -298,7 +310,7 @@ function EditorInner() {
         {/* 3D Canvas */}
         <div className="flex-1 relative">
           <ModelViewer
-            ref={viewerRef}
+            apiRef={viewerRef}
             uploadedFile={uploadedFile}
             readOnly={false}
             params={params}
