@@ -11,7 +11,7 @@ export default function AdminPatientsPage() {
   const [search, setSearch] = useState('');
   const { data, isLoading } = useAdminPatients({ page, page_size: 25, search });
 
-  const patients = data?.data || [];
+  const patients = (data?.data || []) as Record<string, unknown>[];
   const meta = data?.meta;
 
   return (
@@ -35,7 +35,7 @@ export default function AdminPatientsPage() {
           ) : patients.length > 0 ? (
             <>
               <div className="divide-y divide-slate-50">
-                {patients.map((p: Record<string, unknown>) => (
+                {patients.map((p) => (
                   <div key={p.id as string} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-teal-400 flex items-center justify-center flex-shrink-0">
                       <span className="text-white font-semibold text-sm">
@@ -46,7 +46,7 @@ export default function AdminPatientsPage() {
                       <p className="font-medium text-slate-900 text-sm">{p.full_name as string}</p>
                       <p className="text-xs text-slate-500 truncate">{p.email as string}</p>
                     </div>
-                    {p.condition && (
+                    {Boolean(p.condition) && (
                       <span className="hidden sm:block text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                         {p.condition as string}
                       </span>

@@ -8,13 +8,17 @@ export const SITE = {
   description:
     'DynaX connects patients with rehabilitation professionals, prosthetists, orthotists and therapists — with AI-assisted clinical tools, 3D scan collaboration and flexible care payments.',
 
-  // Contact
+  // Contact — product-facing addresses live on the product domain (dynax.app).
   phone: '+234 812 663 6975',
   phoneHref: 'tel:+2348126636975',
-  email: 'hello@dynalimb.com',
-  emailHref: 'mailto:hello@dynalimb.com',
-  support: 'support@dynalimb.com',
+  email: 'hello@dynax.app',
+  emailHref: 'mailto:hello@dynax.app',
+  support: 'support@dynax.app',
   address: 'Lagos, Nigeria',
+
+  // The product lives at dynax.app; the parent organisation is Dynalimb.
+  url: 'https://dynax.app',
+  orgSite: 'https://dynalimb.com',
 
   // Social (update with real handles)
   social: {
@@ -23,9 +27,11 @@ export const SITE = {
     instagram: 'https://instagram.com/dynalimb',
   },
 
-  // Logo: served from imgur. To self-host instead, drop the file at
-  // /public/images/logo.png and change this back to '/images/logo.png'.
-  logo: 'https://i.imgur.com/pHhGO2a.png',
+  // Brand logo — self-hosted in /public/images so it always loads (no imgur
+  // hotlink). `logo` is the colour version for light surfaces; `logoLight` is
+  // a white knockout for dark surfaces. Swap these two files to rebrand.
+  logo: '/images/logo.png',
+  logoLight: '/images/logo-light.png',
 } as const;
 
 export const NAV_LINKS = [

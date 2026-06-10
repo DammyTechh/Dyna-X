@@ -2,30 +2,20 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: [
-      'localhost',
-      'supabase.co',
-      'dynalimb.com',
-      'storage.googleapis.com',
-    ],
+    // Hosts we load <Image>/<img> assets from (brand logo, avatars, storage).
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '*.supabase.co',
-        port: '',
-        pathname: '/storage/v1/object/**',
-      },
+      { protocol: 'https', hostname: 'i.imgur.com' },
+      { protocol: 'https', hostname: 'imgur.com' },
+      { protocol: 'https', hostname: 'dynax.app' },
+      { protocol: 'https', hostname: 'dynalimb.com' },
+      { protocol: 'https', hostname: 'storage.googleapis.com' },
+      { protocol: 'https', hostname: '*.supabase.co', pathname: '/storage/v1/object/**' },
     ],
   },
   webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-    };
-    // Support WASM for manifold (3D operations)
-    config.experiments = {
-      ...config.experiments,
-      asyncWebAssembly: true,
-    };
+    config.resolve.alias = { ...config.resolve.alias };
+    // Support WASM (used by some 3D operations / loaders)
+    config.experiments = { ...config.experiments, asyncWebAssembly: true };
     return config;
   },
   async headers() {
@@ -33,7 +23,7 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
-          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
         ],

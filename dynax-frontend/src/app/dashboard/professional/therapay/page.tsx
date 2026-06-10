@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useTherapayPlans, useCreateTherapayPlan } from '@/hooks/useApi';
+import { useTherapayPlans, useCreateTherapayPlan, useMyPatients } from '@/hooks/useApi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -39,6 +39,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function TherapayPage() {
   const { data: plansData, isLoading } = useTherapayPlans({ page: 1, page_size: 20 });
+  const { data: patientsPage } = useMyPatients({ page: 1, page_size: 100 });
   const { mutateAsync: createPlan, isPending } = useCreateTherapayPlan();
   const [showForm, setShowForm] = useState(false);
 
@@ -194,14 +195,18 @@ export default function TherapayPage() {
               </div>
 
               <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
-                {/* Patient ID */}
+                {/* Patient */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Patient ID</label>
-                  <input
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Patient</label>
+                  <select
                     {...register('patient_id')}
-                    placeholder="Enter patient UUID"
-                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                  />
+                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                  >
+                    <option value="">Select a connected patient…</option>
+                    {patientsPage?.data?.map((p) => (
+                      <option key={p.user_id} value={p.user_id}>{p.full_name}</option>
+                    ))}
+                  </select>
                   {errors.patient_id && <p className="text-red-500 text-xs mt-1">{errors.patient_id.message}</p>}
                 </div>
 

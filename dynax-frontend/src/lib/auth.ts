@@ -12,6 +12,7 @@ export const authService = {
   login: async (email: string, password: string): Promise<AuthResponse> => {
     const res = await apiPost<AuthResponse>('/auth/login', { email, password });
     tokenStore.setTokens(res.access_token, res.refresh_token, res.user.role);
+    if (res.user?.id) tokenStore.setUserId(res.user.id);
     return res;
   },
 

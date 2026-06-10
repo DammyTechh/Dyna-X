@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useProfessionalAppointments, useCreateAppointment, useMyPatients, useCancelAppointment } from '@/hooks/useApi';
+import { VideoCall } from '@/components/video/VideoCall';
 import { Calendar, Plus, Video, MapPin, Clock, Loader2, X, Check } from 'lucide-react';
 import { format, isPast } from 'date-fns';
 import { useForm } from 'react-hook-form';
@@ -32,6 +33,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AppointmentsPage() {
   const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
+  const [callRoom, setCallRoom] = useState<string | null>(null);
   const { data, isLoading, refetch } = useProfessionalAppointments({ page, page_size: 20 });
   const { data: patients } = useMyPatients({ page: 1, page_size: 100 });
   const { mutateAsync: create, isPending: creating } = useCreateAppointment();
@@ -200,11 +202,11 @@ export default function AppointmentsPage() {
                     </div>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {appt.status === 'scheduled' && appt.meeting_url && (
-                        <a href={appt.meeting_url} target="_blank" rel="noopener noreferrer"
-                          className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                          Join
-                        </a>
+                      {appt.status === 'scheduled' && appt.session_type === 'virtual' && (
+                        <button onClick={() => setCallRoom(appt.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                          <Video className="w-3.5 h-3.5" /> Start call
+                        </button>
                       )}
                       {appt.status === 'scheduled' && (
                         <button onClick={() => handleCancel(appt.id)}
@@ -238,6 +240,15 @@ export default function AppointmentsPage() {
           )}
         </div>
       </div>
+
+      {callRoom && (
+        <VideoCall
+          roomId={callRoom}
+          displayName="DynaX clinician"
+          subject="Scheduled video session"
+          onClose={() => setCallRoom(null)}
+        />
+      )}
     </DashboardLayout>
   );
 }

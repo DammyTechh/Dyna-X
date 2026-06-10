@@ -9,6 +9,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v
 const TOKEN_KEY = 'dynax_access_token';
 const REFRESH_KEY = 'dynax_refresh_token';
 const ROLE_KEY = 'dynax_role';
+const USER_ID_KEY = 'dynax_user_id';
 
 export const tokenStore = {
   getAccess: () => {
@@ -31,12 +32,21 @@ export const tokenStore = {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(ROLE_KEY);
+    localStorage.removeItem(USER_ID_KEY);
     Cookies.remove(TOKEN_KEY);
     Cookies.remove(ROLE_KEY);
   },
   getRole: () => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(ROLE_KEY) || Cookies.get(ROLE_KEY) || null;
+  },
+  getUserId: () => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(USER_ID_KEY) || null;
+  },
+  setUserId: (id: string) => {
+    if (typeof window === 'undefined' || !id) return;
+    localStorage.setItem(USER_ID_KEY, id);
   },
 };
 

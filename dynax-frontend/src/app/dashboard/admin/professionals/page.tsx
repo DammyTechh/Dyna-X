@@ -51,7 +51,7 @@ export default function AdminProfessionalsPage() {
     }
   };
 
-  const professionals = (data?.data || []).filter((p: Record<string, unknown>) => {
+  const professionals = ((data?.data || []) as Record<string, unknown>[]).filter((p) => {
     if (!search) return true;
     const name = (p.full_name as string || '').toLowerCase();
     const email = (p.email as string || '').toLowerCase();
@@ -107,7 +107,7 @@ export default function AdminProfessionalsPage() {
             </div>
           ) : professionals.length > 0 ? (
             <div className="divide-y divide-slate-50">
-              {professionals.map((prof: Record<string, unknown>) => {
+              {professionals.map((prof) => {
                 const profId = (prof.user_id || prof.id) as string;
                 const fullName = prof.full_name as string;
                 const email = prof.email as string;

@@ -185,6 +185,7 @@ export interface DeviceMeasurement {
   notes?: string;
   status: 'draft' | 'submitted' | 'approved' | 'fabricating' | 'delivered' | 'revision_needed';
   stl_file_url?: string;
+  model_3d_url?: string;
   created_at: string;
   updated_at: string;
 }

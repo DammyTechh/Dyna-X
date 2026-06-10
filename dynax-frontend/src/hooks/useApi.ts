@@ -241,7 +241,7 @@ export const useDeviceMeasurements = (patientId?: string) =>
 export const useCreateDeviceMeasurement = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { patient_id: string; device_type: string; body_region: string; measurements: Record<string, unknown> }) =>
+    mutationFn: (data: { patient_id: string; device_type: string; body_region: string; measurements: Record<string, unknown>; notes?: string; model_3d_url?: string; stl_file_url?: string }) =>
       apiPost<DeviceMeasurement>('/emr/devices', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['emr', 'devices'] }),
   });
@@ -288,6 +288,18 @@ export const useSendMessage = (conversationId: string) => {
     mutationFn: (content: string) =>
       apiPost<Message>(`/messages/conversations/${conversationId}/messages`, { content }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.messages(conversationId) }),
+  });
+};
+
+// Get-or-create a conversation with another user (by their USER id).
+// The backend route param is historically named ":conversation_id" but it is
+// actually the *target user* id — passing it returns/creates the 1:1 thread.
+export const useStartConversation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (targetUserId: string) =>
+      apiPost<Conversation>(`/messages/conversations/${targetUserId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.conversations }),
   });
 };
 
@@ -399,6 +411,23 @@ export const useCreateDeviceShare = (deviceId?: string) =>
   useMutation({
     mutationFn: (permission: string) => apiPost<DeviceShare>(`/emr/devices/${deviceId}/share`, { permission }),
   });
+
+// Variant that takes the device id at call time — needed when the device was
+// just created in the same handler (state hasn't re-rendered the hook yet).
+export const useCreateDeviceShareById = () =>
+  useMutation({
+    mutationFn: ({ deviceId, permission }: { deviceId: string; permission: string }) =>
+      apiPost<DeviceShare>(`/emr/devices/${deviceId}/share`, { permission }),
+  });
+
+export const useAddDeviceCommentById = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ deviceId, content }: { deviceId: string; content: string }) =>
+      apiPost<DeviceComment>(`/emr/devices/${deviceId}/comments`, { content }),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['device-comments', v.deviceId] }),
+  });
+};
 
 export const useSharedDevice = (token?: string) =>
   useQuery({

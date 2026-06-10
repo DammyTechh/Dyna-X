@@ -2,32 +2,36 @@
 
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, PerspectiveCamera } from '@react-three/drei';
 import {
   Share2, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Download,
-  Eye, Edit3, Layers, X, Send, Copy, Check,
-  Link as LinkIcon, Loader2, ArrowLeft, Upload,
+  Eye, Edit3, Layers, X, Send, Copy, Check, SlidersHorizontal,
+  Link as LinkIcon, Loader2, ArrowLeft, Upload, Camera, Grid3x3, RotateCw,
 } from 'lucide-react';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { tokenStore } from '@/lib/api';
-import { useDeviceComments, useAddDeviceComment, useCreateDeviceShare } from '@/hooks/useApi';
-
-// Real scan viewer (STL/OBJ/GLTF) — client-only, no SSR.
-const ModelViewer = dynamic(() => import('@/components/3d/ModelViewer'), {
-  ssr: false,
-  loading: () => (
-    <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
-      <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-    </div>
-  ),
-});
+import { Logo } from '@/components/brand/Logo';
+import { useDeviceComments, useAddDeviceComment, useCreateDeviceShareById, useCreateDeviceMeasurement, useMyPatients } from '@/hooks/useApi';
+import { uploadScan, storageConfigured } from '@/lib/storage';
+import ModelViewer, { type ViewerHandle, type ViewerParams } from '@/components/3d/ModelViewer';
 
 const ACCEPTED_3D = '.glb,.gltf,.stl,.obj';
+
+const DEFAULT_PARAMS: ViewerParams = {
+  wireframe: false,
+  modelColor: '#94a3b8',
+  opacity: 1,
+  scale: 1,
+  rotationY: 0,
+  autoRotate: false,
+  background: '#0f172a',
+  showGrid: false,
+  lightIntensity: 1,
+};
+
+const SWATCHES = ['#94a3b8', '#2563eb', '#0d9488', '#f59e0b', '#ef4444', '#a855f7', '#e2e8f0', '#1e293b'];
 
 type Permission = 'view' | 'comment' | 'annotate';
 
@@ -49,61 +53,24 @@ interface Comment {
   is_own: boolean;
 }
 
-// ── Placeholder 3D model (box/limb shape) ────────────────────────────────────
-function LimbModel() {
-  return (
-    <group>
-      {/* Upper limb segment */}
-      <mesh position={[0, 0.8, 0]} castShadow>
-        <cylinderGeometry args={[0.12, 0.14, 1.2, 32]} />
-        <meshStandardMaterial color="#e2e8f0" roughness={0.3} metalness={0.1} />
-      </mesh>
-      {/* Knee joint */}
-      <mesh position={[0, 0.15, 0]} castShadow>
-        <sphereGeometry args={[0.17, 32, 32]} />
-        <meshStandardMaterial color="#cbd5e1" roughness={0.2} metalness={0.2} />
-      </mesh>
-      {/* Lower limb segment */}
-      <mesh position={[0, -0.7, 0.05]} castShadow>
-        <cylinderGeometry args={[0.1, 0.11, 1.1, 32]} />
-        <meshStandardMaterial color="#e2e8f0" roughness={0.3} metalness={0.1} />
-      </mesh>
-      {/* Foot / socket */}
-      <mesh position={[0, -1.35, 0.08]} castShadow>
-        <boxGeometry args={[0.22, 0.14, 0.38]} />
-        <meshStandardMaterial color="#94a3b8" roughness={0.4} metalness={0.3} />
-      </mesh>
-    </group>
-  );
-}
-
-function Scene({ wireframe }: { wireframe: boolean }) {
-  return (
-    <>
-      <PerspectiveCamera makeDefault position={[0, 0.5, 3.5]} fov={45} />
-      <OrbitControls enableDamping dampingFactor={0.05} maxPolarAngle={Math.PI} />
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
-      <directionalLight position={[-5, 3, -2]} intensity={0.4} />
-      <Environment preset="studio" />
-      <group>
-        <LimbModel />
-      </group>
-      <Grid position={[0, -1.5, 0]} args={[10, 10]} cellColor="#e2e8f0" sectionColor="#cbd5e1" />
-    </>
-  );
-}
-
 function EditorInner() {
   const role = tokenStore.getRole() || 'professional';
   const searchParams = useSearchParams();
-  const deviceId = searchParams.get('device') || undefined;
+  const [deviceId, setDeviceId] = useState<string | undefined>(searchParams.get('device') || undefined);
 
   // Server-backed collaboration when a device is in context.
   const { data: serverComments } = useDeviceComments(deviceId);
   const addCommentMut = useAddDeviceComment(deviceId);
-  const createShareMut = useCreateDeviceShare(deviceId);
-  const [wireframe, setWireframe] = useState(false);
+  const createShareMut = useCreateDeviceShareById();
+  const createDeviceMut = useCreateDeviceMeasurement();
+  const { data: patientsPage } = useMyPatients({ page: 1, page_size: 100 });
+  const [sharePatient, setSharePatient] = useState('');
+  const viewerRef = useRef<ViewerHandle>(null);
+  const [params, setParams] = useState<ViewerParams>(DEFAULT_PARAMS);
+  const [showProps, setShowProps] = useState(false);
+  const [modelStats, setModelStats] = useState<{ vertices: number; triangles: number } | null>(null);
+  const setParam = <K extends keyof ViewerParams>(k: K, v: ViewerParams[K]) =>
+    setParams((prev) => ({ ...prev, [k]: v }));
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showShare, setShowShare] = useState(false);
@@ -146,29 +113,48 @@ function EditorInner() {
   const generateShareLink = async () => {
     setGeneratingLink(true);
     try {
-      if (deviceId) {
-        // Persist the share link on the backend.
-        const share = await createShareMut.mutateAsync(permission);
-        const newLink: ShareLink = {
-          id: share.id,
-          token: share.token,
-          permission: (share.permission as Permission) || permission,
-          url: share.url || `${window.location.origin}/share/${share.token}`,
-          created_at: share.created_at,
-        };
-        setShareLinks((prev) => [newLink, ...prev]);
-        toast.success('Share link created');
-      } else {
-        // Standalone editor (no device record yet): session-only link.
-        const token = Math.random().toString(36).substring(2, 10).toUpperCase();
-        setShareLinks((prev) => [
-          { id: Date.now().toString(), token, permission, url: `${window.location.origin}/share/${token}`, created_at: new Date().toISOString() },
-          ...prev,
-        ]);
-        toast.success('Share link generated (open a device to make it permanent)');
+      let targetDeviceId = deviceId;
+
+      // Standalone editor: publish the imported scan so others can open it.
+      if (!targetDeviceId) {
+        if (!uploadedFile) {
+          toast.error('Import a scan first, then share it.');
+          return;
+        }
+        if (!sharePatient) {
+          toast.error('Choose which patient this scan belongs to.');
+          return;
+        }
+        if (!storageConfigured()) {
+          toast.error('Storage isn’t configured yet — run migration 002 and set Supabase env vars.');
+          return;
+        }
+        toast.message('Uploading scan…');
+        const modelUrl = await uploadScan(uploadedFile);
+        const device = await createDeviceMut.mutateAsync({
+          patient_id: sharePatient,
+          device_type: '3d_scan',
+          body_region: 'general',
+          measurements: {},
+          notes: uploadedFile.name,
+          model_3d_url: modelUrl,
+        });
+        targetDeviceId = device.id;
+        setDeviceId(device.id); // adopt it so comments persist too
       }
-    } catch {
-      toast.error('Could not create share link');
+
+      const share = await createShareMut.mutateAsync({ deviceId: targetDeviceId!, permission });
+      const newLink: ShareLink = {
+        id: share.id,
+        token: share.token,
+        permission: (share.permission as Permission) || permission,
+        url: share.url || `${window.location.origin}/share/${share.token}`,
+        created_at: share.created_at,
+      };
+      setShareLinks((prev) => [newLink, ...prev]);
+      toast.success('Share link created — anyone with it can open this scan.');
+    } catch (e) {
+      toast.error((e as Error).message || 'Could not create share link');
     } finally {
       setGeneratingLink(false);
     }
@@ -211,14 +197,12 @@ function EditorInner() {
   return (
     <div className="flex flex-col h-screen bg-slate-900 text-white overflow-hidden">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 z-10">
+      <div className="flex items-center justify-between gap-2 flex-wrap px-4 py-3 bg-slate-900 border-b border-slate-800 z-10">
         <div className="flex items-center gap-3">
           <Link href="/dashboard/professional" className="text-slate-400 hover:text-white transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <div className="w-7 h-7 rounded-lg dynax-gradient flex items-center justify-center">
-            <span className="text-xs font-bold">DX</span>
-          </div>
+          <Logo size={28} asLink={false} light />
           <div>
             <p className="text-sm font-semibold">3D Scan Editor</p>
             <p className="text-xs text-slate-400">
@@ -227,7 +211,7 @@ function EditorInner() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {/* Import scan */}
           <input
             ref={fileInputRef}
@@ -246,19 +230,31 @@ function EditorInner() {
 
           {/* Wireframe toggle */}
           <button
-            onClick={() => setWireframe(!wireframe)}
+            onClick={() => setParam('wireframe', !params.wireframe)}
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-              wireframe ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              params.wireframe ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             )}
           >
             <Layers className="w-3.5 h-3.5" />
             Wireframe
           </button>
 
+          {/* Properties / editing parameters */}
+          <button
+            onClick={() => { setShowProps((v) => !v); setShowShare(false); setShowComments(false); }}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+              showProps ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            )}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            Properties
+          </button>
+
           {/* Comments */}
           <button
-            onClick={() => { setShowComments(!showComments); setShowShare(false); }}
+            onClick={() => { setShowComments(!showComments); setShowShare(false); setShowProps(false); }}
             className={cn(
               'relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
               showComments ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -275,7 +271,7 @@ function EditorInner() {
 
           {/* Share */}
           <button
-            onClick={() => { setShowShare(!showShare); setShowComments(false); }}
+            onClick={() => { setShowShare(!showShare); setShowComments(false); setShowProps(false); }}
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
               showShare ? 'bg-green-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -285,8 +281,13 @@ function EditorInner() {
             Share
           </button>
 
-          {/* Download */}
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors">
+          {/* Download / Export */}
+          <button
+            onClick={() => viewerRef.current?.exportGLB(
+              uploadedFile ? uploadedFile.name.replace(/\.[^.]+$/, '') + '.glb' : 'dynax-model.glb'
+            )}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+          >
             <Download className="w-3.5 h-3.5" />
             Export
           </button>
@@ -296,22 +297,13 @@ function EditorInner() {
       <div className="flex flex-1 overflow-hidden">
         {/* 3D Canvas */}
         <div className="flex-1 relative">
-          {uploadedFile ? (
-            <ModelViewer uploadedFile={uploadedFile} readOnly={false} />
-          ) : (
-            <Suspense fallback={
-              <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
-                <div className="text-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-2" />
-                  <p className="text-slate-400 text-sm">Loading 3D model…</p>
-                </div>
-              </div>
-            }>
-              <Canvas shadows className="editor-canvas">
-                <Scene wireframe={wireframe} />
-              </Canvas>
-            </Suspense>
-          )}
+          <ModelViewer
+            ref={viewerRef}
+            uploadedFile={uploadedFile}
+            readOnly={false}
+            params={params}
+            onLoaded={setModelStats}
+          />
 
           {/* Empty-state hint when nothing imported */}
           {!uploadedFile && (
@@ -328,15 +320,26 @@ function EditorInner() {
 
           {/* Canvas controls overlay */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-800/80 backdrop-blur rounded-xl px-3 py-2 border border-slate-700">
-            <button className="w-8 h-8 rounded-lg hover:bg-slate-700 flex items-center justify-center transition-colors" title="Zoom in">
+            <button onClick={() => viewerRef.current?.zoomIn()} className="w-8 h-8 rounded-lg hover:bg-slate-700 flex items-center justify-center transition-colors" title="Zoom in">
               <ZoomIn className="w-4 h-4" />
             </button>
-            <button className="w-8 h-8 rounded-lg hover:bg-slate-700 flex items-center justify-center transition-colors" title="Zoom out">
+            <button onClick={() => viewerRef.current?.zoomOut()} className="w-8 h-8 rounded-lg hover:bg-slate-700 flex items-center justify-center transition-colors" title="Zoom out">
               <ZoomOut className="w-4 h-4" />
             </button>
             <div className="w-px h-5 bg-slate-600" />
-            <button className="w-8 h-8 rounded-lg hover:bg-slate-700 flex items-center justify-center transition-colors" title="Reset camera">
+            <button onClick={() => viewerRef.current?.resetView()} className="w-8 h-8 rounded-lg hover:bg-slate-700 flex items-center justify-center transition-colors" title="Reset camera">
               <RotateCcw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setParam('autoRotate', !params.autoRotate)}
+              className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-colors', params.autoRotate ? 'bg-blue-600 text-white' : 'hover:bg-slate-700')}
+              title="Auto-rotate"
+            >
+              <RotateCw className="w-4 h-4" />
+            </button>
+            <div className="w-px h-5 bg-slate-600" />
+            <button onClick={() => viewerRef.current?.snapshot()} className="w-8 h-8 rounded-lg hover:bg-slate-700 flex items-center justify-center transition-colors" title="Save snapshot (PNG)">
+              <Camera className="w-4 h-4" />
             </button>
           </div>
 
@@ -346,8 +349,98 @@ function EditorInner() {
             <p className="text-slate-400">
               {uploadedFile ? `${(uploadedFile.size / 1024 / 1024).toFixed(2)} MB` : 'Import a scan to replace'}
             </p>
+            {modelStats && (
+              <p className="text-slate-500 mt-0.5">
+                {modelStats.triangles.toLocaleString()} tris · {modelStats.vertices.toLocaleString()} verts
+              </p>
+            )}
           </div>
         </div>
+
+        {/* Properties / editing parameters panel */}
+        {showProps && (
+          <div className="w-80 bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-indigo-400" /> Model Properties
+              </h3>
+              <button onClick={() => setShowProps(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-6 text-sm">
+              {/* Surface color */}
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Surface colour</p>
+                <div className="flex flex-wrap gap-2">
+                  {SWATCHES.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setParam('modelColor', c)}
+                      style={{ background: c }}
+                      className={cn('w-7 h-7 rounded-lg border-2 transition-transform hover:scale-110',
+                        params.modelColor === c ? 'border-white' : 'border-transparent')}
+                      title={c}
+                    />
+                  ))}
+                  <label className="w-7 h-7 rounded-lg border-2 border-slate-600 overflow-hidden cursor-pointer relative" title="Custom colour">
+                    <input type="color" value={params.modelColor}
+                      onChange={(e) => setParam('modelColor', e.target.value)}
+                      className="absolute inset-0 w-full h-full cursor-pointer opacity-0" />
+                    <span className="absolute inset-0 flex items-center justify-center text-[9px] text-slate-300">＋</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Opacity */}
+              <Slider label="Opacity" value={params.opacity} min={0.1} max={1} step={0.05}
+                display={`${Math.round(params.opacity * 100)}%`}
+                onChange={(v) => setParam('opacity', v)} />
+
+              {/* Scale */}
+              <Slider label="Scale" value={params.scale} min={0.2} max={3} step={0.05}
+                display={`${params.scale.toFixed(2)}×`}
+                onChange={(v) => setParam('scale', v)} />
+
+              {/* Rotation */}
+              <Slider label="Rotation (Y)" value={params.rotationY} min={0} max={Math.PI * 2} step={0.05}
+                display={`${Math.round((params.rotationY * 180) / Math.PI)}°`}
+                onChange={(v) => setParam('rotationY', v)} />
+
+              {/* Lighting */}
+              <Slider label="Lighting" value={params.lightIntensity} min={0} max={2} step={0.05}
+                display={`${Math.round(params.lightIntensity * 100)}%`}
+                onChange={(v) => setParam('lightIntensity', v)} />
+
+              {/* Toggles */}
+              <div className="space-y-2 pt-1">
+                <Toggle label="Wireframe" icon={Layers} on={params.wireframe} onClick={() => setParam('wireframe', !params.wireframe)} />
+                <Toggle label="Auto-rotate" icon={RotateCw} on={params.autoRotate} onClick={() => setParam('autoRotate', !params.autoRotate)} />
+                <Toggle label="Show grid" icon={Grid3x3} on={params.showGrid} onClick={() => setParam('showGrid', !params.showGrid)} />
+              </div>
+
+              {/* Background */}
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Background</p>
+                <div className="flex gap-2">
+                  {['#0f172a', '#1e293b', '#000000', '#334155', '#f8fafc'].map((c) => (
+                    <button key={c} onClick={() => setParam('background', c)} style={{ background: c }}
+                      className={cn('flex-1 h-8 rounded-lg border-2', params.background === c ? 'border-indigo-400' : 'border-slate-700')} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Reset all */}
+              <button
+                onClick={() => { setParams(DEFAULT_PARAMS); viewerRef.current?.resetView(); }}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-700 transition-colors text-xs font-medium"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Reset all
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Share panel */}
         {showShare && (
@@ -360,6 +453,28 @@ function EditorInner() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-5">
+              {/* Patient link (only when publishing a freshly imported scan) */}
+              {!deviceId && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Patient this scan belongs to
+                  </p>
+                  <select
+                    value={sharePatient}
+                    onChange={(e) => setSharePatient(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select a connected patient…</option>
+                    {patientsPage?.data?.map((p) => (
+                      <option key={p.user_id} value={p.user_id}>{p.full_name}</option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
+                    Sharing uploads this scan so other professionals can open it from the link.
+                  </p>
+                </div>
+              )}
+
               {/* Permission selector */}
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
@@ -518,6 +633,43 @@ function EditorInner() {
         )}
       </div>
     </div>
+  );
+}
+
+function Slider({ label, value, min, max, step, display, onChange }: {
+  label: string; value: number; min: number; max: number; step: number; display: string;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
+        <span className="text-xs font-mono text-slate-300">{display}</span>
+      </div>
+      <input
+        type="range" min={min} max={max} step={step} value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full accent-indigo-500 cursor-pointer"
+      />
+    </div>
+  );
+}
+
+function Toggle({ label, icon: Icon, on, onClick }: {
+  label: string; icon: React.ElementType; on: boolean; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-slate-700 hover:border-slate-600 transition-colors"
+    >
+      <span className="flex items-center gap-2 text-xs text-slate-200">
+        <Icon className="w-3.5 h-3.5 text-slate-400" /> {label}
+      </span>
+      <span className={cn('relative w-9 h-5 rounded-full transition-colors', on ? 'bg-indigo-500' : 'bg-slate-600')}>
+        <span className={cn('absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all', on ? 'left-[18px]' : 'left-0.5')} />
+      </span>
+    </button>
   );
 }
 

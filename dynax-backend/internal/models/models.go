@@ -232,6 +232,7 @@ type TherapySession struct {
 	ID             string    `json:"id" db:"id"`
 	PatientID      string    `json:"patient_id" db:"patient_id"`
 	ProfessionalID string    `json:"professional_id" db:"professional_id"`
+	ProfessionalType string  `json:"professional_type" db:"professional_type"`
 	AppointmentID  *string   `json:"appointment_id,omitempty" db:"appointment_id"`
 	SessionDate    time.Time `json:"session_date" db:"session_date"`
 	DurationMins   int       `json:"duration_minutes" db:"duration_minutes"`
@@ -338,6 +339,8 @@ type DeviceMeasurement struct {
 	Measurements   interface{} `json:"measurements" db:"measurements"` // JSONB
 	Notes          *string     `json:"notes,omitempty" db:"notes"`
 	Status         string      `json:"status" db:"status"` // draft | submitted | approved | fabricating | delivered
+	Model3DURL     *string     `json:"model_3d_url,omitempty" db:"model_3d_url"`
+	STLFileURL     *string     `json:"stl_file_url,omitempty" db:"stl_file_url"`
 	CreatedAt      time.Time   `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time   `json:"updated_at" db:"updated_at"`
 }
@@ -348,6 +351,8 @@ type CreateDeviceMeasurementRequest struct {
 	BodyRegion   string      `json:"body_region" validate:"required"`
 	Measurements interface{} `json:"measurements" validate:"required"`
 	Notes        string      `json:"notes,omitempty"`
+	Model3DURL   string      `json:"model_3d_url,omitempty"`
+	STLFileURL   string      `json:"stl_file_url,omitempty"`
 }
 
 // ─── Messages / Chat ──────────────────────────────────────────────────────────

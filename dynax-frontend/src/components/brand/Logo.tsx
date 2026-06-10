@@ -24,22 +24,27 @@ interface LogoProps {
  */
 export function Logo({
   asLink = true,
-  showWord = true,
-  size = 32,
+  showWord = false,
+  size = 36,
   className,
   light = false,
 }: LogoProps) {
   const [imgFailed, setImgFailed] = useState(false);
+
+  // If the image fails to load, fall back to the monogram AND show the
+  // wordmark so the brand always reads clearly (never a lone tiny icon).
+  const showWordEffective = showWord || imgFailed;
+  const logoSrc = light ? SITE.logoLight : SITE.logo;
 
   const mark = imgFailed ? (
     <LogoMark size={size} />
   ) : (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={SITE.logo}
+      src={logoSrc}
       alt={`${SITE.name} logo`}
       height={size}
-      style={{ height: size, width: 'auto' }}
+      style={{ height: size, width: 'auto', maxHeight: size }}
       onError={() => setImgFailed(true)}
       className="object-contain"
     />
@@ -48,7 +53,7 @@ export function Logo({
   const content = (
     <span className={cn('inline-flex items-center gap-2.5', className)}>
       {mark}
-      {showWord && (
+      {showWordEffective && (
         <span
           className={cn(
             'font-display font-bold tracking-tight',

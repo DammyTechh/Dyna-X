@@ -27,8 +27,26 @@ const (
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 
 func CORS(cfg *config.Config) gin.HandlerFunc {
+	// Build a fast lookup of explicitly-allowed origins from config.
+	allowed := make(map[string]bool, len(cfg.Security.CORSAllowedOrigins))
+	for _, o := range cfg.Security.CORSAllowedOrigins {
+		allowed[strings.TrimSpace(o)] = true
+	}
+
 	return cors.New(cors.Config{
-		AllowOrigins:     cfg.Security.CORSAllowedOrigins,
+		// AllowOriginFunc is evaluated per-request so we can permit the exact
+		// production origins AND any Vercel preview deployment (which gets a
+		// fresh *.vercel.app hostname per branch/commit) without redeploying.
+		AllowOriginFunc: func(origin string) bool {
+			if allowed[origin] {
+				return true
+			}
+			if strings.HasSuffix(origin, ".vercel.app") &&
+				(strings.HasPrefix(origin, "https://") || strings.HasPrefix(origin, "http://")) {
+				return true
+			}
+			return false
+		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID", "X-Idempotency-Key"},
 		ExposeHeaders:    []string{"X-Request-ID", "X-Total-Count"},

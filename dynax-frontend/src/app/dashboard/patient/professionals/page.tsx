@@ -1,19 +1,34 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useMyProfessionals, useConnectToProfessional } from '@/hooks/useApi';
+import { useMyProfessionals, useConnectToProfessional, useStartConversation } from '@/hooks/useApi';
 import { UserCheck, Loader2, Plus, Link2, Star, Video, MapPin, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { getRoleLabel } from '@/lib/routing';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
 
 export default function PatientProfessionalsPage() {
+  const router = useRouter();
   const { data: professionals, isLoading, refetch } = useMyProfessionals();
   const { mutateAsync: connect, isPending: connecting } = useConnectToProfessional();
+  const { mutateAsync: startConversation } = useStartConversation();
   const [pinCode, setPinCode] = useState('');
   const [showConnect, setShowConnect] = useState(false);
+  const [messagingId, setMessagingId] = useState<string | null>(null);
+
+  const messageProfessional = async (userId: string) => {
+    setMessagingId(userId);
+    try {
+      const conv = await startConversation(userId);
+      router.push(`/dashboard/messages?c=${conv.id}`);
+    } catch {
+      toast.error('Could not open the conversation');
+    } finally {
+      setMessagingId(null);
+    }
+  };
 
   const handleConnect = async () => {
     if (!pinCode.trim()) return;
@@ -149,13 +164,16 @@ export default function PatientProfessionalsPage() {
                   </div>
                 )}
 
-                <Link
-                  href="/dashboard/messages"
-                  className="flex items-center justify-center gap-2 w-full py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
+                <button
+                  onClick={() => messageProfessional(prof.user_id)}
+                  disabled={messagingId === prof.user_id}
+                  className="flex items-center justify-center gap-2 w-full py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-60"
                 >
-                  <MessageSquare className="w-4 h-4" />
+                  {messagingId === prof.user_id
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <MessageSquare className="w-4 h-4" />}
                   Message
-                </Link>
+                </button>
               </div>
             ))}
           </div>

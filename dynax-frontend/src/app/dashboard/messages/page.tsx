@@ -1,30 +1,89 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useConversations, useMessages, useSendMessage } from '@/hooks/useApi';
-import { Send, Search, Loader2, MessageSquare, CheckCheck, Check, Paperclip } from 'lucide-react';
+import {
+  useConversations, useMessages, useSendMessage, useStartConversation,
+  useMyProfessionals, useMyPatients, useMe,
+} from '@/hooks/useApi';
+import { VideoCall } from '@/components/video/VideoCall';
+import {
+  Send, Search, Loader2, MessageSquare, CheckCheck, Check, Paperclip,
+  Plus, X, Video, ArrowLeft,
+} from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { tokenStore } from '@/lib/api';
+import { getRoleLabel } from '@/lib/routing';
 import type { Conversation, Message } from '@/types';
 
-export default function MessagesPage() {
-  const [selectedConv, setSelectedConv] = useState<string | null>(null);
+interface Contact { userId: string; name: string; sub: string; }
+
+function MessagesInner() {
+  const searchParams = useSearchParams();
+  const [selectedConv, setSelectedConv] = useState<string | null>(searchParams.get('c'));
   const [inputText, setInputText] = useState('');
   const [search, setSearch] = useState('');
+  const [composing, setComposing] = useState(false);
+  const [inCall, setInCall] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const myId = typeof window !== 'undefined' ? localStorage.getItem('dynax_user_id') : null;
+
+  const { data: me } = useMe();
+  const myId = me?.user_id || tokenStore.getUserId() || '';
+  const myRole = me?.role || tokenStore.getRole() || '';
+  const isPatient = myRole === 'patient';
+
+  // Role-aware contact list (people I'm allowed to message).
+  const { data: professionals } = useMyProfessionals();
+  const { data: patientsPage } = useMyPatients({ page: 1, page_size: 100 });
+
+  const contacts: Contact[] = useMemo(() => {
+    if (isPatient) {
+      return (professionals || []).map((p) => ({
+        userId: p.user_id, name: p.full_name, sub: getRoleLabel(p.professional_type),
+      }));
+    }
+    return (patientsPage?.data || []).map((p) => ({
+      userId: p.user_id, name: p.full_name, sub: p.condition || 'Patient',
+    }));
+  }, [isPatient, professionals, patientsPage]);
+
+  const contactById = useMemo(() => {
+    const m = new Map<string, Contact>();
+    contacts.forEach((c) => m.set(c.userId, c));
+    return m;
+  }, [contacts]);
 
   const { data: conversations, isLoading: loadingConvs } = useConversations();
   const { data: messagesData, isLoading: loadingMsgs } = useMessages(selectedConv || '', { page: 1, page_size: 50 });
   const { mutateAsync: sendMessage, isPending: sending } = useSendMessage(selectedConv || '');
+  const { mutateAsync: startConversation, isPending: starting } = useStartConversation();
   const messages = messagesData?.data || [];
+
+  // Resolve the "other participant" of a conversation and their display name.
+  const otherOf = (conv: Conversation): Contact => {
+    const otherId = [conv.patient_id, conv.professional_id, conv.admin_id]
+      .find((id) => id && id !== myId) || '';
+    return contactById.get(otherId) || { userId: otherId, name: 'Conversation', sub: '' };
+  };
+
+  const activeConv = conversations?.find((c) => c.id === selectedConv);
+  const activeOther = activeConv ? otherOf(activeConv) : null;
 
   const handleSend = async () => {
     if (!inputText.trim() || !selectedConv || sending) return;
     const text = inputText.trim();
     setInputText('');
     try { await sendMessage(text); } catch { setInputText(text); }
+  };
+
+  const handleStartWith = async (contact: Contact) => {
+    try {
+      const conv = await startConversation(contact.userId);
+      setSelectedConv(conv.id);
+      setComposing(false);
+    } catch { /* surfaced by react-query */ }
   };
 
   useEffect(() => {
@@ -57,7 +116,13 @@ export default function MessagesPage() {
     return format(d, 'MMMM d, yyyy');
   }
 
-  const filteredConvs = (conversations || []).filter(() => true);
+  const q = search.trim().toLowerCase();
+  const filteredConvs = (conversations || []).filter((c) =>
+    !q || otherOf(c).name.toLowerCase().includes(q)
+  );
+  const filteredContacts = contacts.filter((c) =>
+    !q || c.name.toLowerCase().includes(q)
+  );
 
   return (
     <DashboardLayout>
@@ -65,29 +130,76 @@ export default function MessagesPage() {
         {/* Sidebar */}
         <div className={cn('w-full md:w-80 flex-shrink-0 border-r border-slate-100 flex flex-col', selectedConv && 'hidden md:flex')}>
           <div className="px-4 py-4 border-b border-slate-100">
-            <h1 className="font-display font-bold text-slate-900 text-lg mb-3">Messages</h1>
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="font-display font-bold text-slate-900 text-lg">Messages</h1>
+              <button
+                onClick={() => setComposing((v) => !v)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg dynax-gradient text-white text-xs font-semibold hover:opacity-90"
+              >
+                {composing ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                {composing ? 'Close' : 'New'}
+              </button>
+            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…"
+              <input value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder={composing ? 'Search contacts…' : 'Search…'}
                 className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-100 text-sm focus:outline-none" />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {loadingConvs ? (
-              <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
-            ) : filteredConvs.length > 0 ? (
-              filteredConvs.map((conv) => (
-                <ConvItem key={conv.id} conv={conv} isSelected={selectedConv === conv.id}
-                  onClick={() => setSelectedConv(conv.id)} fmtTime={fmtTime} />
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-                <MessageSquare className="w-10 h-10 text-slate-300 mb-3" />
-                <p className="text-slate-500 text-sm font-medium">No conversations yet</p>
-                <p className="text-slate-400 text-xs mt-1">Messages with patients and professionals appear here.</p>
-              </div>
-            )}
-          </div>
+
+          {/* Compose: pick a connected contact to start a chat */}
+          {composing ? (
+            <div className="flex-1 overflow-y-auto">
+              <p className="px-4 pt-3 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                {isPatient ? 'Your care team' : 'Your patients'}
+              </p>
+              {filteredContacts.length > 0 ? (
+                filteredContacts.map((c) => (
+                  <button key={c.userId} onClick={() => handleStartWith(c)} disabled={starting}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 disabled:opacity-60">
+                    <div className="w-10 h-10 rounded-full dynax-gradient flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-semibold text-sm">{c.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{c.name}</p>
+                      <p className="text-xs text-slate-500 truncate">{c.sub}</p>
+                    </div>
+                    {starting && <Loader2 className="w-4 h-4 animate-spin text-slate-400 ml-auto" />}
+                  </button>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                  <MessageSquare className="w-10 h-10 text-slate-300 mb-3" />
+                  <p className="text-slate-500 text-sm font-medium">
+                    {isPatient ? 'No connected professionals' : 'No connected patients'}
+                  </p>
+                  <p className="text-slate-400 text-xs mt-1">
+                    {isPatient
+                      ? 'Connect with a professional using their DX-PIN first.'
+                      : 'Patients appear here once they connect with your code.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto">
+              {loadingConvs ? (
+                <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
+              ) : filteredConvs.length > 0 ? (
+                filteredConvs.map((conv) => (
+                  <ConvItem key={conv.id} conv={conv} other={otherOf(conv)} isSelected={selectedConv === conv.id}
+                    onClick={() => setSelectedConv(conv.id)} fmtTime={fmtTime} />
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                  <MessageSquare className="w-10 h-10 text-slate-300 mb-3" />
+                  <p className="text-slate-500 text-sm font-medium">No conversations yet</p>
+                  <p className="text-slate-400 text-xs mt-1">Tap “New” to start a chat with someone on your care team.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Chat */}
@@ -95,14 +207,25 @@ export default function MessagesPage() {
           {selectedConv ? (
             <>
               <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3 bg-white">
-                <button onClick={() => setSelectedConv(null)} className="md:hidden text-slate-500 mr-1 text-lg">←</button>
+                <button onClick={() => setSelectedConv(null)} className="md:hidden text-slate-500 mr-1">
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
                 <div className="w-9 h-9 rounded-full dynax-gradient flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-semibold text-sm">C</span>
+                  <span className="text-white font-semibold text-sm">
+                    {(activeOther?.name || 'C').charAt(0).toUpperCase()}
+                  </span>
                 </div>
-                <div>
-                  <p className="font-semibold text-sm text-slate-900">Conversation</p>
-                  <p className="text-xs text-green-500 font-medium">Active</p>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-slate-900 truncate">{activeOther?.name || 'Conversation'}</p>
+                  <p className="text-xs text-slate-400 truncate">{activeOther?.sub || 'Active'}</p>
                 </div>
+                <button
+                  onClick={() => setInCall(true)}
+                  title="Start video call"
+                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold transition-colors"
+                >
+                  <Video className="w-4 h-4" /> Call
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 py-4 bg-slate-50">
@@ -122,7 +245,7 @@ export default function MessagesPage() {
                           <div key={msg.id} className={cn('flex mb-2', isOwn ? 'justify-end' : 'justify-start')}>
                             <div className={cn('max-w-[72%] rounded-2xl px-4 py-2.5 text-sm shadow-sm',
                               isOwn ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white text-slate-800 rounded-bl-sm border border-slate-100')}>
-                              <p className="leading-relaxed">{msg.content}</p>
+                              <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
                               <div className={cn('flex items-center gap-1 mt-1', isOwn ? 'justify-end' : 'justify-start')}>
                                 <span className={cn('text-[10px]', isOwn ? 'text-blue-200' : 'text-slate-400')}>
                                   {format(new Date(msg.created_at), 'h:mm a')}
@@ -172,17 +295,38 @@ export default function MessagesPage() {
                 <MessageSquare className="w-9 h-9 text-white" />
               </div>
               <h2 className="font-display font-bold text-xl text-slate-800 mb-2">DynaX Messages</h2>
-              <p className="text-slate-500 text-sm max-w-xs">Select a conversation to start chatting.</p>
+              <p className="text-slate-500 text-sm max-w-xs">Select a conversation, or tap “New” to message someone on your care team.</p>
             </div>
           )}
         </div>
       </div>
+
+      {inCall && selectedConv && (
+        <VideoCall
+          roomId={selectedConv}
+          displayName={(me as { full_name?: string } | undefined)?.full_name || activeOther?.name || 'DynaX user'}
+          subject={activeOther?.name ? `Call with ${activeOther.name}` : 'Video call'}
+          onClose={() => setInCall(false)}
+        />
+      )}
     </DashboardLayout>
   );
 }
 
-function ConvItem({ conv, isSelected, onClick, fmtTime }: {
-  conv: Conversation; isSelected: boolean; onClick: () => void; fmtTime: (ts?: string) => string;
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="flex justify-center items-center h-96"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>
+      </DashboardLayout>
+    }>
+      <MessagesInner />
+    </Suspense>
+  );
+}
+
+function ConvItem({ conv, other, isSelected, onClick, fmtTime }: {
+  conv: Conversation; other: Contact; isSelected: boolean; onClick: () => void; fmtTime: (ts?: string) => string;
 }) {
   return (
     <button onClick={onClick}
@@ -190,7 +334,7 @@ function ConvItem({ conv, isSelected, onClick, fmtTime }: {
         isSelected && 'bg-blue-50 border-l-2 border-l-blue-500')}>
       <div className="relative flex-shrink-0">
         <div className="w-11 h-11 rounded-full dynax-gradient flex items-center justify-center">
-          <span className="text-white font-semibold text-sm">C</span>
+          <span className="text-white font-semibold text-sm">{(other.name || 'C').charAt(0).toUpperCase()}</span>
         </div>
         {conv.unread_count > 0 && (
           <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -201,7 +345,7 @@ function ConvItem({ conv, isSelected, onClick, fmtTime }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <p className={cn('text-sm truncate', conv.unread_count > 0 ? 'font-semibold text-slate-900' : 'font-medium text-slate-800')}>
-            Conversation
+            {other.name || 'Conversation'}
           </p>
           <span className="text-[10px] text-slate-400 flex-shrink-0">{fmtTime(conv.last_message_at)}</span>
         </div>

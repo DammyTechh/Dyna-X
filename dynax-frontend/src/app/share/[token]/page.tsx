@@ -1,117 +1,67 @@
 'use client';
 
-import { useState, Suspense } from 'react';
-import { use } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, PerspectiveCamera } from '@react-three/drei';
+import { useState } from 'react';
 import { MessageCircle, Send, Eye, Edit3, Lock, Loader2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { useSharedDevice } from '@/hooks/useApi';
+import { Logo } from '@/components/brand/Logo';
+import { tokenStore } from '@/lib/api';
+import {
+  useSharedDevice, useDeviceComments, useAddDeviceCommentById,
+} from '@/hooks/useApi';
+import ModelViewer from '@/components/3d/ModelViewer';
 
 type Permission = 'view' | 'comment' | 'annotate';
 
-// ── Resolve the share token against the backend ──────────────────────────────
-function useShareData(token: string) {
+const VIEW_PARAMS = {
+  wireframe: false, modelColor: '#94a3b8', opacity: 1, scale: 1, rotationY: 0,
+  autoRotate: false, background: '#0f172a', showGrid: false, lightIntensity: 1,
+};
+
+export default function SharePage({ params }: { params: { token: string } }) {
+  const { token } = params;
   const { data, isLoading, error } = useSharedDevice(token);
+
   const device = (data?.device || {}) as Record<string, unknown>;
+  const deviceId = typeof device.id === 'string' ? device.id : undefined;
+  const modelUrl = typeof device.model_3d_url === 'string' ? device.model_3d_url : undefined;
   const deviceType = typeof device.device_type === 'string' ? device.device_type : '';
   const bodyRegion = typeof device.body_region === 'string' ? device.body_region : '';
-  const caseName = deviceType
-    ? `${deviceType}${bodyRegion ? ' — ' + bodyRegion : ''}`
-    : 'Shared 3D scan';
-  return {
-    permission: ((data?.permission as Permission) || 'view') as Permission,
-    caseName,
-    ownerName: 'Shared by your care team',
-    loading: isLoading,
-    invalid: !!error,
-  };
-}
+  const caseName = (typeof device.notes === 'string' && device.notes) ||
+    (deviceType ? `${deviceType}${bodyRegion ? ' — ' + bodyRegion : ''}` : 'Shared 3D scan');
+  const permission = ((data?.permission as Permission) || 'view') as Permission;
 
-// ── Placeholder 3D model ──────────────────────────────────────────────────────
-function LimbModel() {
-  return (
-    <group>
-      <mesh position={[0, 0.8, 0]} castShadow>
-        <cylinderGeometry args={[0.12, 0.14, 1.2, 32]} />
-        <meshStandardMaterial color="#e2e8f0" roughness={0.3} metalness={0.1} />
-      </mesh>
-      <mesh position={[0, 0.15, 0]} castShadow>
-        <sphereGeometry args={[0.17, 32, 32]} />
-        <meshStandardMaterial color="#cbd5e1" roughness={0.2} metalness={0.2} />
-      </mesh>
-      <mesh position={[0, -0.7, 0.05]} castShadow>
-        <cylinderGeometry args={[0.1, 0.11, 1.1, 32]} />
-        <meshStandardMaterial color="#e2e8f0" roughness={0.3} metalness={0.1} />
-      </mesh>
-      <mesh position={[0, -1.35, 0.08]} castShadow>
-        <boxGeometry args={[0.22, 0.14, 0.38]} />
-        <meshStandardMaterial color="#94a3b8" roughness={0.4} metalness={0.3} />
-      </mesh>
-    </group>
-  );
-}
-
-function Scene() {
-  return (
-    <>
-      <PerspectiveCamera makeDefault position={[0, 0.5, 3.5]} fov={45} />
-      <OrbitControls enableDamping dampingFactor={0.05} />
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
-      <directionalLight position={[-5, 3, -2]} intensity={0.4} />
-      <Environment preset="studio" />
-      <LimbModel />
-      <Grid position={[0, -1.5, 0]} args={[10, 10]} cellColor="#e2e8f0" sectionColor="#cbd5e1" />
-    </>
-  );
-}
-
-interface Comment {
-  id: string;
-  author_name: string;
-  content: string;
-  created_at: string;
-}
-
-export default function SharePage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = use(params);
-  const { permission, caseName, ownerName, loading } = useShareData(token);
+  const isLoggedIn = !!tokenStore.getAccess?.();
+  const canComment = (permission === 'comment' || permission === 'annotate');
 
   const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]);
   const [text, setText] = useState('');
-  const [name, setName] = useState('');
-  const [submitted, setSubmitted] = useState(false);
 
-  const canComment = permission === 'comment' || permission === 'annotate';
-  const canEdit = permission === 'annotate';
+  // Server-backed comments (only fetch when allowed + signed in).
+  const { data: serverComments } = useDeviceComments(
+    canComment && isLoggedIn ? deviceId : undefined,
+  );
+  const addComment = useAddDeviceCommentById();
 
   const PERM_LABELS: Record<Permission, { label: string; icon: React.ElementType; color: string }> = {
     view: { label: 'View only', icon: Eye, color: 'bg-slate-700 text-slate-300' },
     comment: { label: 'Can comment', icon: MessageCircle, color: 'bg-purple-900/60 text-purple-300' },
     annotate: { label: 'Can edit & annotate', icon: Edit3, color: 'bg-blue-900/60 text-blue-300' },
   };
-
   const perm = PERM_LABELS[permission];
   const PermIcon = perm.icon;
 
-  const handleSubmitComment = () => {
-    if (!text.trim() || (!name.trim() && !submitted)) return;
-    const newComment: Comment = {
-      id: Date.now().toString(),
-      author_name: name || 'Anonymous',
-      content: text.trim(),
-      created_at: new Date().toISOString(),
-    };
-    setComments((prev) => [...prev, newComment]);
-    setText('');
-    setSubmitted(true);
-    // TODO: POST to /share/{token}/comments — comment routes back to owner
+  const submitComment = async () => {
+    if (!text.trim() || !deviceId) return;
+    try {
+      await addComment.mutateAsync({ deviceId, content: text.trim() });
+      setText('');
+    } catch {
+      /* surfaced below */
+    }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -122,67 +72,66 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
     );
   }
 
+  if (error || !data) {
+    return (
+      <div className="h-screen bg-slate-900 flex items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <Lock className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+          <h1 className="text-white font-semibold mb-1">Link unavailable</h1>
+          <p className="text-slate-400 text-sm">This share link is invalid or has expired. Ask the owner to send a new one.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-slate-900 text-white overflow-hidden">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg dynax-gradient flex items-center justify-center">
-            <span className="text-xs font-bold">DX</span>
-          </div>
+          <Logo asLink={false} size={26} light />
           <div>
             <p className="text-sm font-semibold truncate max-w-[200px] md:max-w-none">{caseName}</p>
-            <p className="text-xs text-slate-400">Shared by {ownerName}</p>
+            <p className="text-xs text-slate-400">Shared on DynaX</p>
           </div>
         </div>
-
         <div className="flex items-center gap-2">
-          {/* Permission badge */}
           <span className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium', perm.color)}>
             <PermIcon className="w-3.5 h-3.5" />
             {perm.label}
           </span>
-
           {canComment && (
             <button
               onClick={() => setShowComments(!showComments)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                showComments ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              )}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                showComments ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700')}
             >
               <MessageCircle className="w-3.5 h-3.5" />
-              Comments ({comments.length})
+              Comments{serverComments ? ` (${serverComments.length})` : ''}
             </button>
           )}
         </div>
       </div>
 
-      {/* View-only banner */}
       {permission === 'view' && (
         <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 border-b border-slate-700 text-xs text-slate-400">
           <Lock className="w-3.5 h-3.5" />
-          You have view-only access to this scan. Comments and editing are disabled.
+          You have view-only access to this scan.
         </div>
       )}
 
       <div className="flex flex-1 overflow-hidden">
-        {/* 3D Canvas */}
+        {/* 3D viewer */}
         <div className="flex-1 relative">
-          <Suspense fallback={
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+          {modelUrl ? (
+            <ModelViewer modelUrl={modelUrl} readOnly params={VIEW_PARAMS} />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-center px-6">
+              <p className="text-slate-400 text-sm max-w-xs">
+                This shared record has no 3D model attached.
+              </p>
             </div>
-          }>
-            <Canvas shadows className="editor-canvas">
-              <Scene />
-            </Canvas>
-          </Suspense>
-
-          {/* Help overlay */}
-          <div className="absolute bottom-4 left-4 text-xs text-slate-500">
-            🖱 Drag to rotate · Scroll to zoom · Right-click to pan
-          </div>
+          )}
         </div>
 
         {/* Comments sidebar */}
@@ -196,44 +145,45 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {comments.map((c) => (
-                <div key={c.id} className="bg-slate-700 rounded-xl px-3 py-2.5">
-                  <p className="text-xs font-semibold text-slate-300 mb-1">{c.author_name}</p>
-                  <p className="text-xs text-slate-200 leading-relaxed">{c.content}</p>
-                  <p className="text-[10px] text-slate-500 mt-1">{format(new Date(c.created_at), 'MMM d, h:mm a')}</p>
+              {!isLoggedIn ? (
+                <div className="text-center py-10">
+                  <Lock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                  <p className="text-sm text-slate-400">Sign in to your DynaX account to read and leave comments.</p>
                 </div>
-              ))}
+              ) : serverComments && serverComments.length > 0 ? (
+                serverComments.map((c) => (
+                  <div key={c.id} className="bg-slate-700 rounded-xl px-3 py-2.5">
+                    <p className="text-xs font-semibold text-slate-300 mb-1">{c.author_name} · {c.author_role}</p>
+                    <p className="text-xs text-slate-200 leading-relaxed">{c.content}</p>
+                    <p className="text-[10px] text-slate-500 mt-1">{format(new Date(c.created_at), 'MMM d, h:mm a')}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-10">No comments yet.</p>
+              )}
             </div>
 
-            <div className="p-3 border-t border-slate-700 space-y-2">
-              {!submitted && (
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your name"
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-blue-500"
-                />
-              )}
-              <div className="flex items-end gap-2 bg-slate-900 rounded-xl border border-slate-700 px-3 py-2">
-                <textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Leave a comment… (returns to the owner)"
-                  rows={2}
-                  className="flex-1 bg-transparent text-xs text-slate-200 placeholder-slate-500 outline-none resize-none"
-                />
-                <button
-                  onClick={handleSubmitComment}
-                  disabled={!text.trim() || (!name.trim() && !submitted)}
-                  className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 flex items-center justify-center flex-shrink-0 transition-colors"
-                >
-                  <Send className="w-3 h-3" />
-                </button>
+            {isLoggedIn && (
+              <div className="p-3 border-t border-slate-700">
+                <div className="flex items-end gap-2 bg-slate-900 rounded-xl border border-slate-700 px-3 py-2">
+                  <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(); } }}
+                    placeholder="Leave a comment…"
+                    rows={2}
+                    className="flex-1 bg-transparent text-xs text-slate-200 placeholder-slate-500 outline-none resize-none"
+                  />
+                  <button
+                    onClick={submitComment}
+                    disabled={!text.trim() || addComment.isPending}
+                    className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 flex items-center justify-center flex-shrink-0 transition-colors"
+                  >
+                    {addComment.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                  </button>
+                </div>
               </div>
-              <p className="text-[10px] text-slate-500 text-center">
-                Comments are sent back to the scan owner.
-              </p>
-            </div>
+            )}
           </div>
         )}
       </div>

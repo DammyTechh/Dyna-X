@@ -15,6 +15,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -451,21 +452,27 @@ func (s *ProfessionalService) GetSessions(userID string, q *models.PaginationQue
 
 func (s *ProfessionalService) CreateSession(userID string, req *models.CreateSessionRequest) (*models.TherapySession, error) {
 	ctx := context.Background()
-	when, err := time.Parse(time.RFC3339, req.SessionDate)
+	when, err := parseFlexibleTime(req.SessionDate)
 	if err != nil {
-		return nil, errors.New("invalid_session_date")
+		return nil, errBadDate
+	}
+	// Resolve the professional's discipline for the record (falls back gracefully).
+	profType := "professional"
+	if u, _ := s.users.FindByID(ctx, userID); u != nil && string(u.Role) != "" {
+		profType = string(u.Role)
 	}
 	sess := &models.TherapySession{
-		PatientID:      req.PatientID,
-		ProfessionalID: userID,
-		AppointmentID:  nilIfEmpty(req.AppointmentID),
-		SessionDate:    when,
-		DurationMins:   req.DurationMins,
-		SessionType:    req.SessionType,
-		SubjectiveNote: nilIfEmpty(req.SubjectiveNote),
-		ObjectiveNote:  nilIfEmpty(req.ObjectiveNote),
-		AssessmentNote: nilIfEmpty(req.AssessmentNote),
-		PlanNote:       nilIfEmpty(req.PlanNote),
+		PatientID:        req.PatientID,
+		ProfessionalID:   userID,
+		ProfessionalType: profType,
+		AppointmentID:    nilIfEmpty(req.AppointmentID),
+		SessionDate:      when,
+		DurationMins:     req.DurationMins,
+		SessionType:      req.SessionType,
+		SubjectiveNote:   nilIfEmpty(req.SubjectiveNote),
+		ObjectiveNote:    nilIfEmpty(req.ObjectiveNote),
+		AssessmentNote:   nilIfEmpty(req.AssessmentNote),
+		PlanNote:         nilIfEmpty(req.PlanNote),
 	}
 	return s.sessions.Create(ctx, sess)
 }
@@ -608,6 +615,33 @@ func nilIfEmpty(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// errBadDate is returned when a client sends an unparseable session date.
+var errBadDate = errors.New("invalid_session_date")
+
+// parseFlexibleTime accepts the common date formats a browser/form will send —
+// RFC3339, datetime-local ("2006-01-02T15:04"), with seconds, or date-only —
+// so a session log never 500s just because the input lacked a timezone.
+func parseFlexibleTime(s string) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}, errBadDate
+	}
+	layouts := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04",
+		"2006-01-02 15:04:05",
+		"2006-01-02 15:04",
+		"2006-01-02",
+	}
+	for _, l := range layouts {
+		if t, err := time.Parse(l, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, errBadDate
 }
 
 func professionalRoleFromType(t string) models.Role {

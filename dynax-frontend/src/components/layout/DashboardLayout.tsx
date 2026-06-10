@@ -12,6 +12,7 @@ import {
 import { tokenStore } from '@/lib/api';
 import { authService } from '@/lib/auth';
 import { getDashboardRoute, getRoleLabel, getRoleColor, canAccessEditor } from '@/lib/routing';
+import { Logo, LogoMark } from '@/components/brand/Logo';
 import { useUnreadCount } from '@/hooks/useApi';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -96,16 +97,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="flex items-center justify-between p-4 border-b border-slate-800">
         {!collapsed && (
           <Link href={getDashboardRoute(role)} className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg dynax-gradient flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-display font-bold text-sm">DX</span>
-            </div>
-            <span className="font-display font-bold text-lg">DynaX</span>
+            <Logo asLink={false} size={36} light />
           </Link>
         )}
         {collapsed && (
-          <div className="w-8 h-8 rounded-lg dynax-gradient flex items-center justify-center mx-auto">
-            <span className="text-white font-display font-bold text-sm">DX</span>
-          </div>
+          <Link href={getDashboardRoute(role)} className="mx-auto">
+            <LogoMark size={32} />
+          </Link>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
@@ -201,10 +199,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setMobileOpen(true)} className="text-slate-600">
             <Menu className="w-5 h-5" />
           </button>
-          <div className="w-7 h-7 rounded-lg dynax-gradient flex items-center justify-center">
-            <span className="text-white font-bold text-xs">DX</span>
-          </div>
-          <span className="font-display font-bold text-slate-900">DynaX</span>
+          <Logo size={26} />
         </div>
 
         {/* Page content */}

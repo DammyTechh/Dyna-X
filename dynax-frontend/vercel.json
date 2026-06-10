@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "installCommand": "npm install",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://dyna-x.onrender.com/api/v1",
+    "NEXT_PUBLIC_APP_NAME": "DynaX",
+    "NEXT_PUBLIC_APP_URL": "https://dynax.app"
+  }
+}

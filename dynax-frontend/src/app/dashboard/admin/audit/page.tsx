@@ -99,7 +99,7 @@ export default function AuditLogsPage() {
                         {log.target_type ? (
                           <p className="text-xs text-slate-600">
                             <span className="font-medium capitalize">{log.target_type as string}</span>
-                            {log.target_id && <span className="text-slate-400 ml-1 font-mono">{(log.target_id as string).slice(0, 8)}…</span>}
+                            {!!log.target_id && <span className="text-slate-400 ml-1 font-mono">{(log.target_id as string).slice(0, 8)}…</span>}
                           </p>
                         ) : (
                           <span className="text-xs text-slate-400">—</span>
@@ -116,7 +116,7 @@ export default function AuditLogsPage() {
                         <p className="text-xs text-slate-400">
                           {format(new Date(log.created_at as string), 'MMM d, h:mm a')}
                         </p>
-                        {log.details && (
+                        {!!log.details && (
                           isExpanded
                             ? <ChevronUp className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                             : <ChevronDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
@@ -125,7 +125,7 @@ export default function AuditLogsPage() {
                     </button>
 
                     {/* Expanded details */}
-                    {isExpanded && log.details && (
+                    {isExpanded && !!log.details && (
                       <div className="px-6 pb-3 pl-16">
                         <div className="bg-slate-900 rounded-xl p-3">
                           <pre className="text-xs text-green-400 font-mono overflow-x-auto">

@@ -155,7 +155,7 @@ func (r *SessionRepository) Create(ctx context.Context, s *models.TherapySession
 		RETURNING id, status, created_at, updated_at`
 
 	err := r.db.QueryRow(ctx, q,
-		s.PatientID, s.ProfessionalID, s.AppointmentID, s.SessionType,
+		s.PatientID, s.ProfessionalID, s.AppointmentID, s.ProfessionalType,
 		s.SessionDate, s.DurationMins, s.SessionType,
 		s.SubjectiveNote, s.ObjectiveNote, s.AssessmentNote, s.PlanNote,
 	).Scan(&s.ID, &s.Status, &s.CreatedAt, &s.UpdatedAt)

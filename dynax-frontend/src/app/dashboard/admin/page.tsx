@@ -69,10 +69,10 @@ export default function AdminDashboard() {
           </div>
           <div className="divide-y divide-slate-50">
             {pendingProfs?.data && pendingProfs.data.length > 0 ? (
-              pendingProfs.data.slice(0, 10).map((prof: {
+              (pendingProfs.data as Array<{
                 id?: string; user_id?: string; full_name: string; email?: string;
                 professional_type?: string; license_number?: string; created_at: string;
-              }) => (
+              }>).slice(0, 10).map((prof) => (
                 <div key={prof.id || prof.user_id} className="px-6 py-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">

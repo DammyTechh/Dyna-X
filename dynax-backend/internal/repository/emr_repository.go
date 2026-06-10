@@ -170,20 +170,21 @@ func (r *EMRRepository) CreateDevice(ctx context.Context, professionalID string,
 	raw, _ := json.Marshal(req.Measurements)
 	const q = `
 		INSERT INTO public.device_measurements
-		  (patient_id, professional_id, device_type, body_region, measurements, notes)
-		VALUES ($1,$2,$3,$4,$5::jsonb,$6)
+		  (patient_id, professional_id, device_type, body_region, measurements, notes, model_3d_url, stl_file_url)
+		VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8)
 		RETURNING id, status, created_at, updated_at`
 	d := &models.DeviceMeasurement{
 		PatientID: req.PatientID, ProfessionalID: professionalID,
 		DeviceType: req.DeviceType, BodyRegion: req.BodyRegion,
 		Measurements: req.Measurements, Notes: nilIfEmptyStr(req.Notes),
+		Model3DURL: nilIfEmptyStr(req.Model3DURL), STLFileURL: nilIfEmptyStr(req.STLFileURL),
 	}
 	err := r.db.QueryRow(ctx, q, d.PatientID, d.ProfessionalID, d.DeviceType, d.BodyRegion,
-		string(raw), d.Notes).Scan(&d.ID, &d.Status, &d.CreatedAt, &d.UpdatedAt)
+		string(raw), d.Notes, d.Model3DURL, d.STLFileURL).Scan(&d.ID, &d.Status, &d.CreatedAt, &d.UpdatedAt)
 	return d, err
 }
 
-const deviceCols = `id, patient_id, professional_id, device_type, body_region, measurements, notes, status, created_at, updated_at`
+const deviceCols = `id, patient_id, professional_id, device_type, body_region, measurements, notes, status, model_3d_url, stl_file_url, created_at, updated_at`
 
 func (r *EMRRepository) scanDevices(ctx context.Context, query string, args ...interface{}) ([]models.DeviceMeasurement, error) {
 	rows, err := r.db.Query(ctx, query, args...)
@@ -196,7 +197,7 @@ func (r *EMRRepository) scanDevices(ctx context.Context, query string, args ...i
 		var d models.DeviceMeasurement
 		var meas []byte
 		if err := rows.Scan(&d.ID, &d.PatientID, &d.ProfessionalID, &d.DeviceType, &d.BodyRegion,
-			&meas, &d.Notes, &d.Status, &d.CreatedAt, &d.UpdatedAt); err != nil {
+			&meas, &d.Notes, &d.Status, &d.Model3DURL, &d.STLFileURL, &d.CreatedAt, &d.UpdatedAt); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal(meas, &d.Measurements)

@@ -1,20 +1,76 @@
 'use client';
 
-import { use } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { usePatient, useClinicalNotes, useCarePlans, usePatientSessions, usePatientBalance } from '@/hooks/useApi';
-import { Loader2, User, Phone, Mail, Calendar, Heart, Activity, ClipboardList, CreditCard, MessageSquare } from 'lucide-react';
+import { VideoCall } from '@/components/video/VideoCall';
+import {
+  usePatient,
+  useClinicalNotes,
+  useCarePlans,
+  usePatientSessions,
+  usePatientBalance,
+  useStartConversation,
+} from '@/hooks/useApi';
+import {
+  Loader2,
+  Phone,
+  Mail,
+  Calendar,
+  Heart,
+  Activity,
+  ClipboardList,
+  CreditCard,
+  MessageSquare,
+  Video,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
-export default function PatientDetailPage({ params }: { params: Promise<{ patient_id: string }> }) {
-  const { patient_id } = use(params);
+export default function PatientDetailPage({
+  params,
+}: {
+  params: { patient_id: string };
+}) {
+  const { patient_id } = params;
+  const router = useRouter();
+
   const { data: patient, isLoading } = usePatient(patient_id);
-  const { data: notesData } = useClinicalNotes(patient_id, { page: 1, page_size: 5 });
+  const { mutateAsync: startConversation, isPending: startingChat } = useStartConversation();
+  const [callRoom, setCallRoom] = useState<string | null>(null);
+
+  const { data: notesData } = useClinicalNotes(patient_id, {
+    page: 1,
+    page_size: 5,
+  });
   const { data: carePlans } = useCarePlans(patient_id);
-  const { data: sessionsData } = usePatientSessions({ page: 1, page_size: 5 });
+  const { data: sessionsData } = usePatientSessions({
+    page: 1,
+    page_size: 5,
+  });
   const { data: balance } = usePatientBalance(patient_id);
+
+  const openChat = async () => {
+    if (!patient?.user_id) return;
+    try {
+      const conv = await startConversation(patient.user_id);
+      router.push(`/dashboard/messages?c=${conv.id}`);
+    } catch {
+      toast.error('Could not open the conversation');
+    }
+  };
+
+  const startCall = async () => {
+    if (!patient?.user_id) return;
+    try {
+      const conv = await startConversation(patient.user_id);
+      setCallRoom(conv.id);
+    } catch {
+      toast.error('Could not start the call');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -70,10 +126,14 @@ export default function PatientDetailPage({ params }: { params: Promise<{ patien
               </div>
             </div>
             <div className="flex gap-2">
-              <Link href={`/dashboard/messages`}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors">
-                <MessageSquare className="w-4 h-4" /> Message
-              </Link>
+              <button onClick={openChat} disabled={startingChat}
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60">
+                {startingChat ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />} Message
+              </button>
+              <button onClick={startCall} disabled={startingChat}
+                className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-semibold hover:bg-teal-700 transition-colors disabled:opacity-60">
+                <Video className="w-4 h-4" /> Video Call
+              </button>
               <Link href={`/dashboard/professional/sessions?patient=${patient_id}`}
                 className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">
                 <Activity className="w-4 h-4" /> Log Session
@@ -210,6 +270,15 @@ export default function PatientDetailPage({ params }: { params: Promise<{ patien
           </div>
         )}
       </div>
+
+      {callRoom && (
+        <VideoCall
+          roomId={callRoom}
+          displayName="DynaX clinician"
+          subject={`Call with ${patient.full_name}`}
+          onClose={() => setCallRoom(null)}
+        />
+      )}
     </DashboardLayout>
   );
 }

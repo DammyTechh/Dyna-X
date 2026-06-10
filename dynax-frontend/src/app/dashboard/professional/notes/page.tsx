@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useClinicalNotes, useCreateNote, useGenerateSOAPNote } from '@/hooks/useApi';
+import { useClinicalNotes, useCreateNote, useGenerateSOAPNote, useMyPatients } from '@/hooks/useApi';
 import { useForm } from 'react-hook-form';
 import {
   Plus, X, Loader2, FileText, Sparkles, Lock, Unlock, ChevronDown, ChevronUp,
@@ -31,6 +31,7 @@ export default function ClinicalNotesPage() {
   const [isConfidential, setIsConfidential] = useState(false);
 
   const { data: notesData, isLoading } = useClinicalNotes(filterPatient, { page: 1, page_size: 30 });
+  const { data: patientsPage } = useMyPatients({ page: 1, page_size: 100 });
   const { mutateAsync: createNote, isPending: creating } = useCreateNote();
   const { mutateAsync: generateSOAP, isPending: generatingSOAP } = useGenerateSOAPNote();
 
@@ -217,15 +218,24 @@ export default function ClinicalNotesPage() {
               </div>
 
               <div className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
-                {/* Patient ID */}
+                {/* Patient */}
                 <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">Patient ID *</label>
-                  <input
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">Patient *</label>
+                  <select
                     value={patientId}
                     onChange={(e) => setPatientId(e.target.value)}
-                    placeholder="Patient UUID"
-                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                  />
+                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                  >
+                    <option value="">Select a connected patient…</option>
+                    {patientsPage?.data?.map((p) => (
+                      <option key={p.user_id} value={p.user_id}>{p.full_name}</option>
+                    ))}
+                  </select>
+                  {patientsPage && patientsPage.data.length === 0 && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      No connected patients yet — patients appear here once they connect with your DX-PIN.
+                    </p>
+                  )}
                 </div>
 
                 {/* Note type */}

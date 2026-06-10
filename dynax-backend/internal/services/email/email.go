@@ -2,11 +2,22 @@ package email
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/resend/resend-go/v2"
 
 	"github.com/dynalimb/dynax-backend/internal/config"
 	"github.com/dynalimb/dynax-backend/pkg/logger"
+)
+
+// Brand constants — single source of truth for email styling/links.
+const (
+	appURL    = "https://dynax.app"
+	logoURL   = "https://dynax.app/images/logo-light.png"
+	supportTo = "support@dynax.app"
+	orgName   = "Dynalimb Technologies"
+	brandFrom = "#1D4ED8"
+	brandTo   = "#0D9488"
 )
 
 // Client wraps the Resend API client with DynaX-specific helpers.
@@ -29,36 +40,86 @@ func (c *Client) from() string {
 	return fmt.Sprintf("%s <%s>", c.fromName, c.fromEmail)
 }
 
-// ── Template helpers ──────────────────────────────────────────────────────────
+// ── Shared layout ─────────────────────────────────────────────────────────────
+
+// layout wraps body content in the branded DynaX email shell (header bar with
+// logo, white card, footer). `preheader` is hidden inbox-preview text.
+func layout(preheader, body string) string {
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+</head>
+<body style="margin:0;padding:0;background:#eef2f7;font-family:'Inter','Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">%s</span>
+  <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%%;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,%s,%s);padding:26px 40px;text-align:center;">
+            <img src="%s" alt="DynaX" height="34" style="height:34px;width:auto;display:inline-block;">
+          </td>
+        </tr>
+        <!-- Body -->
+        <tr>
+          <td style="padding:40px;">
+            %s
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="padding:24px 40px 32px;border-top:1px solid #eef2f7;">
+            <p style="margin:0 0 6px;color:#94a3b8;font-size:13px;line-height:1.6;">
+              Need help? Contact us at <a href="mailto:%s" style="color:#2563eb;text-decoration:none;">%s</a>.
+            </p>
+            <p style="margin:0;color:#cbd5e1;font-size:12px;line-height:1.6;">
+              DynaX — Connected rehabilitation, prosthetics &amp; therapy care.<br>
+              &copy; %s, a product of %s. All rights reserved.
+            </p>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:16px 0 0;color:#cbd5e1;font-size:11px;">You received this email because you have a DynaX account.</p>
+    </td></tr>
+  </table>
+</body>
+</html>`, preheader, brandFrom, brandTo, logoURL, body, supportTo, supportTo, currentYear(), orgName)
+}
+
+// button renders a branded CTA button.
+func button(label, url, color string) string {
+	if color == "" {
+		color = "#2563eb"
+	}
+	return fmt.Sprintf(`
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
+  <tr><td style="border-radius:10px;background:%s;">
+    <a href="%s" style="display:inline-block;padding:14px 30px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;">%s</a>
+  </td></tr>
+</table>`, color, url, label)
+}
+
+func h1(text string) string {
+	return fmt.Sprintf(`<h1 style="margin:0 0 14px;color:#0f172a;font-size:23px;font-weight:700;line-height:1.3;">%s</h1>`, text)
+}
+
+func p(text string) string {
+	return fmt.Sprintf(`<p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.65;">%s</p>`, text)
+}
+
+func currentYear() string { return fmt.Sprintf("%d", time.Now().Year()) }
+
+// ── Templates ─────────────────────────────────────────────────────────────────
 
 // SendWelcome sends the onboarding welcome email.
 func (c *Client) SendWelcome(to, name, role string) error {
-	subject := "Welcome to DynaX — Your Rehabilitation Platform"
-	html := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"></head>
-<body style="font-family:Inter,sans-serif;background:#f5f5f5;margin:0;padding:0;">
-  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;padding:40px;">
-    <img src="https://dynalimb.com/logo.png" alt="DynaX" style="height:40px;margin-bottom:32px;">
-    <h1 style="color:#1a1a1a;font-size:24px;">Welcome to DynaX, %s!</h1>
-    <p style="color:#555;font-size:16px;line-height:1.6;">
-      Your account has been created as a <strong>%s</strong>. 
-      You can now log in and start using the platform.
-    </p>
-    <a href="https://dynax.dynalimb.com/login"
-       style="display:inline-block;background:#2563eb;color:#fff;padding:14px 28px;
-              border-radius:8px;text-decoration:none;font-weight:600;margin:24px 0;">
-      Get Started →
-    </a>
-    <p style="color:#888;font-size:14px;margin-top:32px;">
-      Need help? Reply to this email or contact support@dynalimb.com
-    </p>
-  </div>
-</body>
-</html>`, name, role)
-
-	return c.send(to, subject, html)
+	body := h1(fmt.Sprintf("Welcome to DynaX, %s!", name)) +
+		p(fmt.Sprintf("Your account has been created as a <strong>%s</strong>. You can now sign in and start using the platform.", role)) +
+		button("Get started →", appURL+"/auth/login", "")
+	return c.send(to, "Welcome to DynaX — your rehabilitation platform", layout("Your DynaX account is ready.", body))
 }
 
 // otpEmail builds a branded OTP email body.
@@ -67,29 +128,18 @@ func (c *Client) otpEmail(name, code, heading, intro string) string {
 	if name != "" {
 		greeting = name
 	}
-	return fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<body style="font-family:Inter,Arial,sans-serif;background:#f1f5f9;margin:0;padding:0;">
-  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:16px;padding:40px;">
-    <img src="https://dynalimb.com/logo.png" alt="DynaX" style="height:40px;margin-bottom:28px;">
-    <h1 style="color:#0f172a;font-size:22px;margin:0 0 8px;">%s</h1>
-    <p style="color:#475569;font-size:15px;line-height:1.6;">Hi %s, %s</p>
-    <div style="margin:28px 0;text-align:center;">
-      <div style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;
-                  padding:18px 28px;font-size:34px;font-weight:700;letter-spacing:10px;color:#2563eb;">
-        %s
-      </div>
-    </div>
-    <p style="color:#64748b;font-size:14px;line-height:1.6;">
-      This code expires in <strong>15 minutes</strong>. For your security, never share it with anyone.
-    </p>
-    <p style="color:#94a3b8;font-size:13px;margin-top:28px;">
-      If you didn't request this, you can safely ignore this email.
-    </p>
-  </div>
-</body>
-</html>`, heading, greeting, intro, code)
+	codeBox := fmt.Sprintf(`
+<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:24px auto;">
+  <tr><td style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:14px;padding:18px 30px;text-align:center;">
+    <span style="font-size:34px;font-weight:700;letter-spacing:12px;color:#2563eb;font-family:'Courier New',monospace;">%s</span>
+  </td></tr>
+</table>`, code)
+	body := h1(heading) +
+		p(fmt.Sprintf("Hi %s, %s", greeting, intro)) +
+		codeBox +
+		p("This code expires in <strong>15 minutes</strong>. For your security, never share it with anyone.") +
+		`<p style="margin:8px 0 0;color:#94a3b8;font-size:13px;line-height:1.6;">If you didn't request this, you can safely ignore this email.</p>`
+	return layout("Your DynaX verification code", body)
 }
 
 // SendVerificationOTP emails a 6-digit account verification code.
@@ -110,139 +160,68 @@ func (c *Client) SendPasswordResetOTP(to, name, code string) error {
 
 // SendPasswordReset sends a password reset link.
 func (c *Client) SendPasswordReset(to, name, resetURL string) error {
-	subject := "Reset Your DynaX Password"
-	html := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<body style="font-family:Inter,sans-serif;background:#f5f5f5;margin:0;padding:0;">
-  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;padding:40px;">
-    <img src="https://dynalimb.com/logo.png" alt="DynaX" style="height:40px;margin-bottom:32px;">
-    <h1 style="color:#1a1a1a;font-size:24px;">Password Reset Request</h1>
-    <p style="color:#555;font-size:16px;line-height:1.6;">
-      Hi %s, we received a request to reset your DynaX password.
-      Click the button below to set a new password. This link expires in <strong>1 hour</strong>.
-    </p>
-    <a href="%s"
-       style="display:inline-block;background:#dc2626;color:#fff;padding:14px 28px;
-              border-radius:8px;text-decoration:none;font-weight:600;margin:24px 0;">
-      Reset Password
-    </a>
-    <p style="color:#888;font-size:14px;">
-      If you didn't request this, you can safely ignore this email.
-    </p>
-  </div>
-</body>
-</html>`, name, resetURL)
-
-	return c.send(to, subject, html)
+	body := h1("Password reset request") +
+		p(fmt.Sprintf("Hi %s, we received a request to reset your DynaX password. Click the button below to set a new password. This link expires in <strong>1 hour</strong>.", name)) +
+		button("Reset password", resetURL, "#dc2626") +
+		`<p style="margin:8px 0 0;color:#94a3b8;font-size:13px;line-height:1.6;">If you didn't request this, you can safely ignore this email.</p>`
+	return c.send(to, "Reset your DynaX password", layout("Reset your DynaX password", body))
 }
 
 // SendProfessionalApproved notifies a professional their account is approved.
 func (c *Client) SendProfessionalApproved(to, name string) error {
-	subject := "🎉 Your DynaX Professional Account is Approved!"
-	html := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<body style="font-family:Inter,sans-serif;background:#f5f5f5;margin:0;padding:0;">
-  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;padding:40px;">
-    <img src="https://dynalimb.com/logo.png" alt="DynaX" style="height:40px;margin-bottom:32px;">
-    <h1 style="color:#1a1a1a;font-size:24px;">You're Approved, %s!</h1>
-    <p style="color:#555;font-size:16px;line-height:1.6;">
-      Your professional account on DynaX has been reviewed and <strong>approved</strong>.
-      You can now accept patients, schedule sessions, and access all professional features.
-    </p>
-    <a href="https://dynax.dynalimb.com/professional/dashboard"
-       style="display:inline-block;background:#16a34a;color:#fff;padding:14px 28px;
-              border-radius:8px;text-decoration:none;font-weight:600;margin:24px 0;">
-      Go to Dashboard →
-    </a>
-  </div>
-</body>
-</html>`, name)
-
-	return c.send(to, subject, html)
+	body := h1(fmt.Sprintf("You're approved, %s! 🎉", name)) +
+		p("Your professional account on DynaX has been reviewed and <strong>approved</strong>. You can now accept patients, schedule sessions, and access all professional features.") +
+		button("Go to dashboard →", appURL+"/dashboard/professional", "#16a34a")
+	return c.send(to, "Your DynaX professional account is approved", layout("Your DynaX account is approved.", body))
 }
 
 // SendProfessionalRejected notifies a professional their account was rejected.
 func (c *Client) SendProfessionalRejected(to, name, notes string) error {
-	subject := "Update on Your DynaX Professional Application"
-	html := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<body style="font-family:Inter,sans-serif;background:#f5f5f5;margin:0;padding:0;">
-  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;padding:40px;">
-    <img src="https://dynalimb.com/logo.png" alt="DynaX" style="height:40px;margin-bottom:32px;">
-    <h1 style="color:#1a1a1a;font-size:24px;">Application Update</h1>
-    <p style="color:#555;font-size:16px;line-height:1.6;">
-      Hi %s, after reviewing your application we are unable to approve your account at this time.
-    </p>
-    <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:16px;border-radius:4px;margin:20px 0;">
-      <p style="color:#991b1b;margin:0;font-size:15px;"><strong>Reviewer notes:</strong> %s</p>
-    </div>
-    <p style="color:#555;font-size:16px;">
-      Please contact <a href="mailto:support@dynalimb.com">support@dynalimb.com</a> 
-      if you believe this was an error or have questions.
-    </p>
-  </div>
-</body>
-</html>`, name, notes)
-
-	return c.send(to, subject, html)
+	body := h1("Application update") +
+		p(fmt.Sprintf("Hi %s, after reviewing your application we are unable to approve your account at this time.", name)) +
+		fmt.Sprintf(`<div style="background:#fef2f2;border-left:4px solid #dc2626;padding:16px 18px;border-radius:8px;margin:0 0 16px;">
+      <p style="margin:0;color:#991b1b;font-size:14px;line-height:1.6;"><strong>Reviewer notes:</strong> %s</p>
+    </div>`, notes) +
+		p(fmt.Sprintf(`Please contact <a href="mailto:%s" style="color:#2563eb;text-decoration:none;">%s</a> if you believe this was an error or have questions.`, supportTo, supportTo))
+	return c.send(to, "Update on your DynaX professional application", layout("An update on your DynaX application.", body))
 }
 
 // SendAppointmentReminder sends an appointment reminder.
 func (c *Client) SendAppointmentReminder(to, patientName, professionalName, datetime, sessionType string) error {
-	subject := fmt.Sprintf("Reminder: Session with %s Tomorrow", professionalName)
-	html := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<body style="font-family:Inter,sans-serif;background:#f5f5f5;margin:0;padding:0;">
-  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;padding:40px;">
-    <img src="https://dynalimb.com/logo.png" alt="DynaX" style="height:40px;margin-bottom:32px;">
-    <h1 style="color:#1a1a1a;font-size:24px;">Session Reminder</h1>
-    <p style="color:#555;font-size:16px;line-height:1.6;">Hi %s,</p>
-    <p style="color:#555;font-size:16px;line-height:1.6;">
-      You have an upcoming <strong>%s session</strong> with <strong>%s</strong> scheduled for:
-    </p>
-    <div style="background:#eff6ff;border-radius:8px;padding:20px;margin:20px 0;text-align:center;">
-      <p style="color:#1d4ed8;font-size:20px;font-weight:700;margin:0;">%s</p>
-    </div>
-    <a href="https://dynax.dynalimb.com/appointments"
-       style="display:inline-block;background:#2563eb;color:#fff;padding:14px 28px;
-              border-radius:8px;text-decoration:none;font-weight:600;margin:24px 0;">
-      View Details →
-    </a>
-  </div>
-</body>
-</html>`, patientName, sessionType, professionalName, datetime)
-
-	return c.send(to, subject, html)
+	body := h1("Session reminder") +
+		p(fmt.Sprintf("Hi %s,", patientName)) +
+		p(fmt.Sprintf("You have an upcoming <strong>%s session</strong> with <strong>%s</strong> scheduled for:", sessionType, professionalName)) +
+		fmt.Sprintf(`<div style="background:#eff6ff;border-radius:10px;padding:20px;margin:0 0 8px;text-align:center;">
+      <p style="margin:0;color:#1d4ed8;font-size:19px;font-weight:700;">%s</p>
+    </div>`, datetime) +
+		button("View details →", appURL+"/dashboard/patient/appointments", "")
+	return c.send(to, fmt.Sprintf("Reminder: session with %s", professionalName), layout("Your upcoming DynaX session.", body))
 }
 
 // SendPatientConnected notifies a professional a patient has connected.
 func (c *Client) SendPatientConnected(to, professionalName, patientName string) error {
-	subject := fmt.Sprintf("New Patient: %s has connected with you", patientName)
-	html := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<body style="font-family:Inter,sans-serif;background:#f5f5f5;margin:0;padding:0;">
-  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;padding:40px;">
-    <img src="https://dynalimb.com/logo.png" alt="DynaX" style="height:40px;margin-bottom:32px;">
-    <h1 style="color:#1a1a1a;font-size:24px;">New Patient Connected</h1>
-    <p style="color:#555;font-size:16px;line-height:1.6;">
-      Hi %s, <strong>%s</strong> has used your personal code to connect with you on DynaX.
-      You can now view their profile and schedule appointments.
-    </p>
-    <a href="https://dynax.dynalimb.com/professional/patients"
-       style="display:inline-block;background:#2563eb;color:#fff;padding:14px 28px;
-              border-radius:8px;text-decoration:none;font-weight:600;margin:24px 0;">
-      View Patient →
-    </a>
-  </div>
-</body>
-</html>`, professionalName, patientName)
+	body := h1("New patient connected") +
+		p(fmt.Sprintf("Hi %s, <strong>%s</strong> has used your personal code to connect with you on DynaX. You can now view their profile and schedule appointments.", professionalName, patientName)) +
+		button("View patient →", appURL+"/dashboard/professional/patients", "")
+	return c.send(to, fmt.Sprintf("%s has connected with you on DynaX", patientName), layout("A new patient connected on DynaX.", body))
+}
 
-	return c.send(to, subject, html)
+// SendDxPin emails a professional's DX PIN to a patient they have met, so the
+// patient can enter it on their dashboard to connect.
+func (c *Client) SendDxPin(to, professionalName, professionalEmail, code string) error {
+	pinBox := fmt.Sprintf(`
+<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:24px auto;">
+  <tr><td style="background:%s;border-radius:12px;padding:16px 30px;text-align:center;">
+    <span style="font-size:30px;font-weight:700;letter-spacing:8px;color:#ffffff;font-family:'Courier New',monospace;">%s</span>
+  </td></tr>
+</table>`, brandTo, code)
+	body := h1(fmt.Sprintf("Connect with %s on DynaX", professionalName)) +
+		p(fmt.Sprintf("%s (%s) has invited you to connect on DynaX. Sign in (or create your free patient account), open your dashboard, and enter the DX-PIN below to link your care.", professionalName, professionalEmail)) +
+		pinBox +
+		p("You only need the PIN above to connect.") +
+		button("Go to my dashboard →", appURL+"/dashboard/patient", "") +
+		`<p style="margin:8px 0 0;color:#94a3b8;font-size:13px;line-height:1.6;">If you don't recognise this invitation you can safely ignore this email.</p>`
+	return c.send(to, fmt.Sprintf("Your DynaX connection PIN from %s", professionalName), layout("Your DynaX connection PIN.", body))
 }
 
 // ── Core send ─────────────────────────────────────────────────────────────────
@@ -263,39 +242,4 @@ func (c *Client) send(to, subject, html string) error {
 
 	logger.Get().Info().Str("id", resp.Id).Str("to", to).Str("subject", subject).Msg("email sent")
 	return nil
-}
-
-// SendDxPin emails a professional's DX PIN to a patient they have met, so the
-// patient can enter it on their dashboard to connect.
-func (c *Client) SendDxPin(to, professionalName, professionalEmail, code string) error {
-	subject := fmt.Sprintf("Your DynaX connection PIN from %s", professionalName)
-	html := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<body style="font-family:Inter,sans-serif;background:#f5f5f5;margin:0;padding:0;">
-  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;padding:40px;">
-    <img src="https://i.imgur.com/pHhGO2a.png" alt="DynaX" style="height:40px;margin-bottom:32px;">
-    <h1 style="color:#1a1a1a;font-size:24px;">Connect with %s on DynaX</h1>
-    <p style="color:#555;font-size:16px;line-height:1.6;">
-      %s (%s) has invited you to connect on DynaX. Sign in (or create your free
-      patient account), open your dashboard, and enter the DX-PIN below to link your care.
-    </p>
-    <div style="text-align:center;margin:28px 0;">
-      <span style="display:inline-block;background:#0d9488;color:#fff;font-size:30px;
-                   letter-spacing:6px;font-weight:700;padding:16px 28px;border-radius:10px;">%s</span>
-    </div>
-    <p style="color:#555;font-size:14px;">You only need the PIN above to connect.</p>
-    <a href="https://dynax.app/patient"
-       style="display:inline-block;background:#2563eb;color:#fff;padding:14px 28px;
-              border-radius:8px;text-decoration:none;font-weight:600;">
-      Go to my dashboard →
-    </a>
-    <p style="color:#999;font-size:13px;margin-top:24px;">
-      If you don't recognise this invitation you can safely ignore this email.
-    </p>
-  </div>
-</body>
-</html>`, professionalName, professionalName, professionalEmail, code)
-
-	return c.send(to, subject, html)
 }

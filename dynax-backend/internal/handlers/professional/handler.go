@@ -306,6 +306,10 @@ func (h *Handler) CreateSession(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	session, err := h.service.CreateSession(userID, &req)
 	if err != nil {
+		if err.Error() == "invalid_session_date" {
+			response.BadRequest(c, "INVALID_SESSION_DATE", "Session date is missing or in an unsupported format")
+			return
+		}
 		response.InternalError(c, err)
 		return
 	}

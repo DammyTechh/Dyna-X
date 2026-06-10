@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { usePatientAppointments } from '@/hooks/useApi';
+import { VideoCall } from '@/components/video/VideoCall';
 import { Calendar, Loader2, Clock, Video, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, isPast, isToday, isTomorrow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ export default function PatientAppointmentsPage() {
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
+  const [callRoom, setCallRoom] = useState<string | null>(null);
   const { data, isLoading } = usePatientAppointments({ page, page_size: 20 });
 
   const allAppts = data?.data || [];
@@ -157,16 +159,14 @@ export default function PatientAppointmentsPage() {
                           <p className="text-sm text-slate-700">{appt.notes}</p>
                         </div>
                       )}
-                      {appt.status === 'scheduled' && appt.meeting_url && (
-                        <a
-                          href={appt.meeting_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                      {appt.status === 'scheduled' && appt.session_type === 'virtual' && (
+                        <button
+                          onClick={() => setCallRoom(appt.id)}
                           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
                         >
                           <Video className="w-4 h-4" />
-                          Join Virtual Session
-                        </a>
+                          Join Video Call
+                        </button>
                       )}
                     </div>
                   )}
@@ -200,6 +200,15 @@ export default function PatientAppointmentsPage() {
           </div>
         )}
       </div>
+
+      {callRoom && (
+        <VideoCall
+          roomId={callRoom}
+          displayName="DynaX patient"
+          subject="Scheduled video session"
+          onClose={() => setCallRoom(null)}
+        />
+      )}
     </DashboardLayout>
   );
 }

@@ -22,7 +22,7 @@ export function SiteHeader() {
   return (
     <header className="fixed top-0 inset-x-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
       <div className="container flex items-center justify-between h-16">
-        <Logo size={34} />
+        <Logo size={42} />
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
