@@ -12,8 +12,10 @@ import (
 
 // Brand constants — single source of truth for email styling/links.
 const (
-	appURL    = "https://dynax.app"
-	logoURL   = "https://dynax.app/images/logo-light.png"
+	appURL = "https://dynax.app"
+	// Email logo must be an absolute, publicly reachable URL. It points at the
+	// live frontend. Change this to https://dynax.app/... once that domain is live.
+	logoURL   = "https://dyna-x.netlify.app/images/logo-light.png"
 	supportTo = "support@dynax.app"
 	orgName   = "Dynalimb Technologies"
 	brandFrom = "#1D4ED8"
@@ -59,8 +61,8 @@ func layout(preheader, body string) string {
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%%;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
         <!-- Header -->
         <tr>
-          <td style="background:linear-gradient(135deg,%s,%s);padding:26px 40px;text-align:center;">
-            <img src="%s" alt="DynaX" height="34" style="height:34px;width:auto;display:inline-block;">
+          <td style="background:%s;background:linear-gradient(135deg,%s,%s);padding:26px 40px;text-align:center;">
+            <img src="%s" alt="DynaX" height="36" style="height:36px;width:auto;display:inline-block;">
           </td>
         </tr>
         <!-- Body -->
@@ -86,7 +88,7 @@ func layout(preheader, body string) string {
     </td></tr>
   </table>
 </body>
-</html>`, preheader, brandFrom, brandTo, logoURL, body, supportTo, supportTo, currentYear(), orgName)
+</html>`, preheader, brandFrom, brandFrom, brandTo, logoURL, body, supportTo, supportTo, currentYear(), orgName)
 }
 
 // button renders a branded CTA button.

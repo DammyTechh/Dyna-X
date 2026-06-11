@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { tokenStore } from '@/lib/api';
 import { Logo } from '@/components/brand/Logo';
-import { useDeviceComments, useAddDeviceComment, useCreateDeviceShareById, useCreateDeviceMeasurement, useMyPatients } from '@/hooks/useApi';
+import { useDeviceComments, useAddDeviceComment, useCreateDeviceShareById, useCreateDeviceMeasurement } from '@/hooks/useApi';
 import { uploadScan, storageConfigured } from '@/lib/storage';
 import dynamic from 'next/dynamic';
 import { type ViewerHandle, type ViewerParams } from '@/components/3d/ModelViewer';
@@ -75,8 +75,6 @@ function EditorInner() {
   const addCommentMut = useAddDeviceComment(deviceId);
   const createShareMut = useCreateDeviceShareById();
   const createDeviceMut = useCreateDeviceMeasurement();
-  const { data: patientsPage } = useMyPatients({ page: 1, page_size: 100 });
-  const [sharePatient, setSharePatient] = useState('');
   const viewerRef = useRef<ViewerHandle>(null);
   const [params, setParams] = useState<ViewerParams>(DEFAULT_PARAMS);
   const [showProps, setShowProps] = useState(false);
@@ -133,18 +131,19 @@ function EditorInner() {
           toast.error('Import a scan first, then share it.');
           return;
         }
-        if (!sharePatient) {
-          toast.error('Choose which patient this scan belongs to.');
+        if (!storageConfigured()) {
+          toast.error('Storage isn’t configured yet — run the storage migration and set Supabase env vars.');
           return;
         }
-        if (!storageConfigured()) {
-          toast.error('Storage isn’t configured yet — run migration 002 and set Supabase env vars.');
+        const ownerId = tokenStore.getUserId();
+        if (!ownerId) {
+          toast.error('Could not identify your account — please sign in again.');
           return;
         }
         toast.message('Uploading scan…');
         const modelUrl = await uploadScan(uploadedFile);
         const device = await createDeviceMut.mutateAsync({
-          patient_id: sharePatient,
+          patient_id: ownerId, // scan is owned by you; no patient needed to share
           device_type: '3d_scan',
           body_region: 'general',
           measurements: {},
@@ -156,15 +155,16 @@ function EditorInner() {
       }
 
       const share = await createShareMut.mutateAsync({ deviceId: targetDeviceId!, permission });
+      const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
       const newLink: ShareLink = {
         id: share.id,
         token: share.token,
         permission: (share.permission as Permission) || permission,
-        url: share.url || `${window.location.origin}/share/${share.token}`,
+        url: `${base}/share/${share.token}`,
         created_at: share.created_at,
       };
       setShareLinks((prev) => [newLink, ...prev]);
-      toast.success('Share link created — anyone with it can open this scan.');
+      toast.success('Share link created — any professional with the link can open this scan.');
     } catch (e) {
       toast.error((e as Error).message || 'Could not create share link');
     } finally {
@@ -215,9 +215,9 @@ function EditorInner() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <Logo size={28} asLink={false} light />
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-semibold">3D Scan Editor</p>
-            <p className="text-xs text-slate-400">
+            <p className="hidden sm:block text-xs text-slate-400 truncate max-w-[220px]">
               {uploadedFile ? uploadedFile.name : 'Import a scan to begin'}
             </p>
           </div>
@@ -237,7 +237,7 @@ function EditorInner() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors"
           >
             <Upload className="w-3.5 h-3.5" />
-            Import
+            <span className="hidden sm:inline">Import</span>
           </button>
 
           {/* Wireframe toggle */}
@@ -249,7 +249,7 @@ function EditorInner() {
             )}
           >
             <Layers className="w-3.5 h-3.5" />
-            Wireframe
+            <span className="hidden sm:inline">Wireframe</span>
           </button>
 
           {/* Properties / editing parameters */}
@@ -261,7 +261,7 @@ function EditorInner() {
             )}
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            Properties
+            <span className="hidden sm:inline">Properties</span>
           </button>
 
           {/* Comments */}
@@ -273,7 +273,7 @@ function EditorInner() {
             )}
           >
             <MessageCircle className="w-3.5 h-3.5" />
-            Comments
+            <span className="hidden sm:inline">Comments</span>
             {comments.length > 0 && (
               <span className="w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] flex items-center justify-center font-bold">
                 {comments.length}
@@ -290,7 +290,7 @@ function EditorInner() {
             )}
           >
             <Share2 className="w-3.5 h-3.5" />
-            Share
+            <span className="hidden sm:inline">Share</span>
           </button>
 
           {/* Download / Export */}
@@ -301,7 +301,7 @@ function EditorInner() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
-            Export
+            <span className="hidden sm:inline">Export</span>
           </button>
         </div>
       </div>
@@ -465,26 +465,11 @@ function EditorInner() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-5">
-              {/* Patient link (only when publishing a freshly imported scan) */}
               {!deviceId && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    Patient this scan belongs to
-                  </p>
-                  <select
-                    value={sharePatient}
-                    onChange={(e) => setSharePatient(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select a connected patient…</option>
-                    {patientsPage?.data?.map((p) => (
-                      <option key={p.user_id} value={p.user_id}>{p.full_name}</option>
-                    ))}
-                  </select>
-                  <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
-                    Sharing uploads this scan so other professionals can open it from the link.
-                  </p>
-                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed bg-slate-900/60 rounded-xl p-3 border border-slate-700">
+                  Sharing uploads this scan and creates a link. Any professional with the link can open it
+                  with the permission you choose below — no need to pick a patient.
+                </p>
               )}
 
               {/* Permission selector */}

@@ -126,7 +126,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+          // Exact match always wins. Prefix match only for non-home routes,
+          // otherwise the Dashboard (a prefix of every page) stays highlighted
+          // alongside the real active item.
+          const isHome = item.href === getDashboardRoute(role);
+          const isActive = pathname === item.href || (!isHome && pathname.startsWith(item.href + '/'));
           return (
             <Link
               key={item.href}
