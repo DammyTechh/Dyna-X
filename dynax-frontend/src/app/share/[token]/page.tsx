@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageCircle, Send, Eye, Edit3, Lock, Loader2, X } from 'lucide-react';
+import { MessageCircle, Send, Eye, Edit3, Lock, Loader2, X, SlidersHorizontal, RotateCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/brand/Logo';
@@ -10,6 +10,7 @@ import {
   useSharedDevice, useDeviceComments, useAddDeviceCommentById,
 } from '@/hooks/useApi';
 import dynamic from 'next/dynamic';
+import { type ViewerParams } from '@/components/3d/ModelViewer';
 const ModelViewer = dynamic(() => import('@/components/3d/ModelViewer'), {
   ssr: false,
   loading: () => (
@@ -21,7 +22,7 @@ const ModelViewer = dynamic(() => import('@/components/3d/ModelViewer'), {
 
 type Permission = 'view' | 'comment' | 'annotate';
 
-const VIEW_PARAMS = {
+const DEFAULT_PARAMS: ViewerParams = {
   wireframe: false, modelColor: '#94a3b8', opacity: 1, scale: 1, rotationY: 0,
   autoRotate: false, background: '#0f172a', showGrid: false, lightIntensity: 1,
 };
@@ -41,9 +42,14 @@ export default function SharePage({ params }: { params: { token: string } }) {
 
   const isLoggedIn = !!tokenStore.getAccess?.();
   const canComment = (permission === 'comment' || permission === 'annotate');
+  const canAnnotate = permission === 'annotate';
 
   const [showComments, setShowComments] = useState(false);
+  const [showProps, setShowProps] = useState(false);
   const [text, setText] = useState('');
+  const [viewParams, setViewParams] = useState<ViewerParams>(DEFAULT_PARAMS);
+  const setParam = <K extends keyof ViewerParams>(k: K, v: ViewerParams[K]) =>
+    setViewParams((prev) => ({ ...prev, [k]: v }));
 
   // Server-backed comments (only fetch when allowed + signed in).
   const { data: serverComments } = useDeviceComments(
@@ -104,13 +110,23 @@ export default function SharePage({ params }: { params: { token: string } }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium', perm.color)}>
+          <span className={cn('hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium', perm.color)}>
             <PermIcon className="w-3.5 h-3.5" />
             {perm.label}
           </span>
+          {canAnnotate && (
+            <button
+              onClick={() => { setShowProps((v) => !v); setShowComments(false); }}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                showProps ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700')}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Edit
+            </button>
+          )}
           {canComment && (
             <button
-              onClick={() => setShowComments(!showComments)}
+              onClick={() => { setShowComments(!showComments); setShowProps(false); }}
               className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
                 showComments ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700')}
             >
@@ -128,11 +144,11 @@ export default function SharePage({ params }: { params: { token: string } }) {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* 3D viewer */}
-        <div className="flex-1 relative">
+      <div className="relative flex-1 overflow-hidden">
+        {/* 3D viewer (always full-size; panels overlay it) */}
+        <div className="absolute inset-0">
           {modelUrl ? (
-            <ModelViewer modelUrl={modelUrl} readOnly params={VIEW_PARAMS} />
+            <ModelViewer modelUrl={modelUrl} readOnly={!canAnnotate} params={viewParams} />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-center px-6">
               <p className="text-slate-400 text-sm max-w-xs">
@@ -142,9 +158,48 @@ export default function SharePage({ params }: { params: { token: string } }) {
           )}
         </div>
 
+        {/* Properties / editing panel (annotate permission) */}
+        {showProps && canAnnotate && (
+          <div className="absolute inset-y-0 right-0 z-40 w-full max-w-sm bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+              <h3 className="font-semibold text-sm">Edit &amp; Annotate</h3>
+              <button onClick={() => setShowProps(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <SToggle label="Wireframe" value={viewParams.wireframe} onChange={(v) => setParam('wireframe', v)} />
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5">Surface colour</label>
+                <input type="color" value={viewParams.modelColor}
+                  onChange={(e) => setParam('modelColor', e.target.value)}
+                  className="w-full h-9 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer" />
+              </div>
+              <SSlider label="Opacity" value={viewParams.opacity} min={0.1} max={1} step={0.05}
+                display={`${Math.round(viewParams.opacity * 100)}%`} onChange={(v) => setParam('opacity', v)} />
+              <SSlider label="Scale" value={viewParams.scale} min={0.2} max={3} step={0.1}
+                display={`${viewParams.scale.toFixed(1)}×`} onChange={(v) => setParam('scale', v)} />
+              <SSlider label="Rotation" value={viewParams.rotationY} min={0} max={Math.PI * 2} step={0.05}
+                display={`${Math.round((viewParams.rotationY * 180) / Math.PI)}°`} onChange={(v) => setParam('rotationY', v)} />
+              <SSlider label="Light" value={viewParams.lightIntensity} min={0.2} max={2.5} step={0.1}
+                display={viewParams.lightIntensity.toFixed(1)} onChange={(v) => setParam('lightIntensity', v)} />
+              <SToggle label="Auto-rotate" value={viewParams.autoRotate} onChange={(v) => setParam('autoRotate', v)} />
+              <button
+                onClick={() => setViewParams(DEFAULT_PARAMS)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
+              >
+                <RotateCw className="w-3.5 h-3.5" /> Reset view
+              </button>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Adjust the model to highlight areas. Leave a comment to send your notes back to the owner.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Comments sidebar */}
         {showComments && canComment && (
-          <div className="fixed sm:relative inset-y-0 right-0 z-40 sm:z-auto w-full max-w-sm sm:max-w-none sm:inset-auto sm:w-72 bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden shadow-2xl sm:shadow-none">
+          <div className="absolute inset-y-0 right-0 z-40 w-full max-w-sm bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden shadow-2xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
               <h3 className="font-semibold text-sm">Comments</h3>
               <button onClick={() => setShowComments(false)} className="text-slate-400 hover:text-white">
@@ -196,5 +251,38 @@ export default function SharePage({ params }: { params: { token: string } }) {
         )}
       </div>
     </div>
+  );
+}
+
+function SSlider({ label, value, min, max, step, display, onChange }: {
+  label: string; value: number; min: number; max: number; step: number; display: string;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs text-slate-400">{label}</label>
+        <span className="text-xs text-slate-300 font-medium">{display}</span>
+      </div>
+      <input
+        type="range" min={min} max={max} step={step} value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full accent-indigo-500 cursor-pointer"
+      />
+    </div>
+  );
+}
+
+function SToggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onChange(!value)}
+      className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-600 transition-colors"
+    >
+      <span className="text-xs text-slate-300">{label}</span>
+      <span className={cn('w-9 h-5 rounded-full transition-colors relative', value ? 'bg-indigo-500' : 'bg-slate-600')}>
+        <span className={cn('absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all', value ? 'left-[18px]' : 'left-0.5')} />
+      </span>
+    </button>
   );
 }

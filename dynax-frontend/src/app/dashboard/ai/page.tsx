@@ -18,6 +18,51 @@ interface ChatMessage {
   timestamp: Date;
 }
 
+// --- Lightweight markdown rendering (bold, bullet/numbered lists, headings) ---
+function renderInline(text: string): React.ReactNode[] {
+  // **bold** and `code`
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((p, i) => {
+    if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i}>{p.slice(2, -2)}</strong>;
+    if (/^`[^`]+`$/.test(p)) return <code key={i} className="px-1 py-0.5 rounded bg-slate-100 text-[13px]">{p.slice(1, -1)}</code>;
+    return <span key={i}>{p}</span>;
+  });
+}
+
+function FormattedContent({ text }: { text: string }) {
+  const lines = text.split('\n');
+  const blocks: React.ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
+    if (trimmed === '') { i++; continue; }
+    if (/^[-*]\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[-*]\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^[-*]\s+/, '')); i++;
+      }
+      blocks.push(<ul key={key++} className="list-disc pl-5 space-y-1 my-1.5">{items.map((it, j) => <li key={j}>{renderInline(it)}</li>)}</ul>);
+      continue;
+    }
+    if (/^\d+\.\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^\d+\.\s+/, '')); i++;
+      }
+      blocks.push(<ol key={key++} className="list-decimal pl-5 space-y-1 my-1.5">{items.map((it, j) => <li key={j}>{renderInline(it)}</li>)}</ol>);
+      continue;
+    }
+    if (/^#{1,4}\s+/.test(trimmed)) {
+      blocks.push(<p key={key++} className="font-semibold mt-2.5 mb-0.5">{renderInline(trimmed.replace(/^#{1,4}\s+/, ''))}</p>);
+      i++; continue;
+    }
+    blocks.push(<p key={key++} className={key > 0 ? 'mt-2' : ''}>{renderInline(trimmed)}</p>);
+    i++;
+  }
+  return <>{blocks}</>;
+}
+
 const SUGGESTED = [
   { icon: '🩺', text: 'Help me write a SOAP note for a post-amputation patient', role: ['physiotherapist', 'prosthetist', 'orthotist'] },
   { icon: '💊', text: 'What are best exercises for lower limb rehabilitation?', role: ['physiotherapist', 'patient'] },
@@ -64,7 +109,7 @@ export default function AIAssistantPage() {
         id: res.id,
         role: 'assistant',
         content: res.response,
-        timestamp: new Date(res.created_at),
+        timestamp: new Date(), // response just arrived — show local time
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch {
@@ -232,9 +277,11 @@ export default function AIAssistantPage() {
                         ? 'bg-blue-600 text-white rounded-tr-sm'
                         : 'bg-white border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm'
                     )}>
-                      {msg.content.split('\n').map((line, i) => (
-                        <p key={i} className={i > 0 ? 'mt-2' : ''}>{line}</p>
-                      ))}
+                      {msg.role === 'assistant'
+                        ? <FormattedContent text={msg.content} />
+                        : msg.content.split('\n').map((line, i) => (
+                            <p key={i} className={i > 0 ? 'mt-2' : ''}>{line}</p>
+                          ))}
                       <p className={cn('text-xs mt-2', msg.role === 'user' ? 'text-blue-200' : 'text-slate-400')}>
                         {format(msg.timestamp, 'h:mm a')}
                       </p>

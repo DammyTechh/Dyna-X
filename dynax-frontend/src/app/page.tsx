@@ -47,7 +47,7 @@ export default function HomePage() {
 
           <p className="mx-auto mt-6 max-w-2xl text-lg md:text-xl leading-relaxed text-slate-600 animate-fade-in">
             One connected platform for patients, prosthetists, orthotists and
-            therapists — with AI-assisted clinical tools, real-time 3D scan
+            therapists with AI-assisted clinical tools, real-time 3D scan
             collaboration, and flexible care payments.
           </p>
 
