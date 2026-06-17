@@ -11,8 +11,8 @@ export const SITE = {
   // Contact — product-facing addresses live on the product domain (dynax.app).
   phone: '+234 812 663 6975',
   phoneHref: 'tel:+2348126636975',
-  email: 'hello@dynax.app',
-  emailHref: 'mailto:hello@dynax.app',
+  email: 'support@dynax.app',
+  emailHref: 'mailto:support@dynax.app',
   support: 'support@dynax.app',
   address: 'Lagos, Nigeria',
 
