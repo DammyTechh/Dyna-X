@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -229,23 +230,23 @@ type UpdateAppointmentRequest struct {
 // ─── Session / Therapy Log ────────────────────────────────────────────────────
 
 type TherapySession struct {
-	ID             string    `json:"id" db:"id"`
-	PatientID      string    `json:"patient_id" db:"patient_id"`
-	ProfessionalID string    `json:"professional_id" db:"professional_id"`
-	ProfessionalType string  `json:"professional_type" db:"professional_type"`
-	AppointmentID  *string   `json:"appointment_id,omitempty" db:"appointment_id"`
-	SessionDate    time.Time `json:"session_date" db:"session_date"`
-	DurationMins   int       `json:"duration_minutes" db:"duration_minutes"`
-	SessionType    string    `json:"session_type" db:"session_type"`
-	Status         string    `json:"status" db:"status"`
-	SubjectiveNote *string   `json:"subjective_note,omitempty" db:"subjective_note"`
-	ObjectiveNote  *string   `json:"objective_note,omitempty" db:"objective_note"`
-	AssessmentNote *string   `json:"assessment_note,omitempty" db:"assessment_note"`
-	PlanNote       *string   `json:"plan_note,omitempty" db:"plan_note"`
-	GoalsAchieved  *bool     `json:"goals_achieved,omitempty" db:"goals_achieved"`
-	PatientRating  *int      `json:"patient_rating,omitempty" db:"patient_rating"`
-	CreatedAt      time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
+	ID               string    `json:"id" db:"id"`
+	PatientID        string    `json:"patient_id" db:"patient_id"`
+	ProfessionalID   string    `json:"professional_id" db:"professional_id"`
+	ProfessionalType string    `json:"professional_type" db:"professional_type"`
+	AppointmentID    *string   `json:"appointment_id,omitempty" db:"appointment_id"`
+	SessionDate      time.Time `json:"session_date" db:"session_date"`
+	DurationMins     int       `json:"duration_minutes" db:"duration_minutes"`
+	SessionType      string    `json:"session_type" db:"session_type"`
+	Status           string    `json:"status" db:"status"`
+	SubjectiveNote   *string   `json:"subjective_note,omitempty" db:"subjective_note"`
+	ObjectiveNote    *string   `json:"objective_note,omitempty" db:"objective_note"`
+	AssessmentNote   *string   `json:"assessment_note,omitempty" db:"assessment_note"`
+	PlanNote         *string   `json:"plan_note,omitempty" db:"plan_note"`
+	GoalsAchieved    *bool     `json:"goals_achieved,omitempty" db:"goals_achieved"`
+	PatientRating    *int      `json:"patient_rating,omitempty" db:"patient_rating"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CreateSessionRequest struct {
@@ -289,27 +290,36 @@ type CreateClinicalNoteRequest struct {
 // ─── Care Plans ───────────────────────────────────────────────────────────────
 
 type CarePlan struct {
-	ID             string    `json:"id" db:"id"`
-	PatientID      string    `json:"patient_id" db:"patient_id"`
-	ProfessionalID string    `json:"professional_id" db:"professional_id"`
-	Title          string    `json:"title" db:"title"`
-	Description    *string   `json:"description,omitempty" db:"description"`
-	Goals          []string  `json:"goals,omitempty" db:"goals"`
-	StartDate      string    `json:"start_date" db:"start_date"`
-	EndDate        *string   `json:"end_date,omitempty" db:"end_date"`
-	Status         string    `json:"status" db:"status"` // active | completed | paused | cancelled
-	ProgressNotes  *string   `json:"progress_notes,omitempty" db:"progress_notes"`
-	CreatedAt      time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
+	ID                string          `json:"id" db:"id"`
+	PatientID         string          `json:"patient_id" db:"patient_id"`
+	ProfessionalID    string          `json:"professional_id" db:"professional_id"`
+	Title             string          `json:"title" db:"title"`
+	Description       *string         `json:"description,omitempty" db:"description"`
+	Goals             []string        `json:"goals,omitempty" db:"goals"`
+	StartDate         string          `json:"start_date" db:"start_date"`
+	EndDate           *string         `json:"end_date,omitempty" db:"end_date"`
+	Status            string          `json:"status" db:"status"` // active | completed | paused | cancelled
+	ProgressNotes     *string         `json:"progress_notes,omitempty" db:"progress_notes"`
+	Tasks             json.RawMessage `json:"tasks" db:"tasks"`
+	SharedWithPatient bool            `json:"shared_with_patient" db:"shared_with_patient"`
+	CreatedAt         time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at" db:"updated_at"`
 }
 
 type CreateCarePlanRequest struct {
-	PatientID   string   `json:"patient_id" validate:"required,uuid"`
-	Title       string   `json:"title" validate:"required,min=3,max=200"`
-	Description string   `json:"description,omitempty"`
-	Goals       []string `json:"goals,omitempty"`
-	StartDate   string   `json:"start_date" validate:"required"`
-	EndDate     string   `json:"end_date,omitempty"`
+	PatientID         string          `json:"patient_id" validate:"required,uuid"`
+	Title             string          `json:"title" validate:"required,min=3,max=200"`
+	Description       string          `json:"description,omitempty"`
+	Goals             []string        `json:"goals,omitempty"`
+	StartDate         string          `json:"start_date" validate:"required"`
+	EndDate           string          `json:"end_date,omitempty"`
+	Tasks             json.RawMessage `json:"tasks,omitempty"`
+	SharedWithPatient *bool           `json:"shared_with_patient,omitempty"`
+}
+
+// UpdateCarePlanTasksRequest lets a patient tick tasks complete (full array sent back).
+type UpdateCarePlanTasksRequest struct {
+	Tasks json.RawMessage `json:"tasks" validate:"required"`
 }
 
 // ─── Exercise Plans ───────────────────────────────────────────────────────────

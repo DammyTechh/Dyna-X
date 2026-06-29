@@ -98,18 +98,26 @@ func (r *EMRRepository) DeleteNote(ctx context.Context, professionalID, noteID s
 // ── Care plans ────────────────────────────────────────────────────────────────
 
 func (r *EMRRepository) CreateCarePlan(ctx context.Context, professionalID string, req *models.CreateCarePlanRequest) (*models.CarePlan, error) {
+	tasks := req.Tasks
+	if len(tasks) == 0 {
+		tasks = json.RawMessage("[]")
+	}
+	shared := true
+	if req.SharedWithPatient != nil {
+		shared = *req.SharedWithPatient
+	}
 	const q = `
 		INSERT INTO public.care_plans
-		  (patient_id, professional_id, title, description, goals, start_date, end_date)
-		VALUES ($1,$2,$3,$4,$5,$6::date,$7::date)
+		  (patient_id, professional_id, title, description, goals, start_date, end_date, tasks, shared_with_patient)
+		VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,$8::jsonb,$9)
 		RETURNING id, status, created_at, updated_at`
 	p := &models.CarePlan{
 		PatientID: req.PatientID, ProfessionalID: professionalID, Title: req.Title,
 		Description: nilIfEmptyStr(req.Description), Goals: req.Goals, StartDate: req.StartDate,
-		EndDate: nilIfEmptyStr(req.EndDate),
+		EndDate: nilIfEmptyStr(req.EndDate), Tasks: tasks, SharedWithPatient: shared,
 	}
 	err := r.db.QueryRow(ctx, q, p.PatientID, p.ProfessionalID, p.Title, p.Description,
-		p.Goals, p.StartDate, p.EndDate).Scan(&p.ID, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+		p.Goals, p.StartDate, p.EndDate, string(tasks), shared).Scan(&p.ID, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	return p, err
 }
 
@@ -123,7 +131,7 @@ func (r *EMRRepository) scanCarePlans(ctx context.Context, query string, args ..
 	for rows.Next() {
 		var p models.CarePlan
 		if err := rows.Scan(&p.ID, &p.PatientID, &p.ProfessionalID, &p.Title, &p.Description,
-			&p.Goals, &p.StartDate, &p.EndDate, &p.Status, &p.ProgressNotes, &p.CreatedAt, &p.UpdatedAt); err != nil {
+			&p.Goals, &p.StartDate, &p.EndDate, &p.Status, &p.ProgressNotes, &p.Tasks, &p.SharedWithPatient, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, p)
@@ -132,7 +140,7 @@ func (r *EMRRepository) scanCarePlans(ctx context.Context, query string, args ..
 }
 
 const carePlanCols = `id, patient_id, professional_id, title, description, goals,
-		start_date::text, end_date::text, status, progress_notes, created_at, updated_at`
+		start_date::text, end_date::text, status, progress_notes, tasks, shared_with_patient, created_at, updated_at`
 
 func (r *EMRRepository) ListCarePlans(ctx context.Context, professionalID, patientID string) ([]models.CarePlan, error) {
 	return r.scanCarePlans(ctx,
@@ -144,7 +152,25 @@ func (r *EMRRepository) ListCarePlans(ctx context.Context, professionalID, patie
 func (r *EMRRepository) ListCarePlansForPatient(ctx context.Context, patientID string) ([]models.CarePlan, error) {
 	return r.scanCarePlans(ctx,
 		`SELECT `+carePlanCols+` FROM public.care_plans
-		 WHERE patient_id=$1 ORDER BY created_at DESC`, patientID)
+		 WHERE patient_id=$1 AND shared_with_patient = true ORDER BY created_at DESC`, patientID)
+}
+
+// UpdateCarePlanTasks lets a patient update the task checklist on their own plan.
+func (r *EMRRepository) UpdateCarePlanTasks(ctx context.Context, patientID, planID string, tasks json.RawMessage) (*models.CarePlan, error) {
+	if len(tasks) == 0 {
+		tasks = json.RawMessage("[]")
+	}
+	if err := r.db.ExecOne(ctx,
+		`UPDATE public.care_plans SET tasks=$1::jsonb, updated_at=NOW()
+		 WHERE id=$2 AND patient_id=$3`,
+		string(tasks), planID, patientID); err != nil {
+		return nil, err
+	}
+	plans, err := r.scanCarePlans(ctx, `SELECT `+carePlanCols+` FROM public.care_plans WHERE id=$1`, planID)
+	if err != nil || len(plans) == 0 {
+		return nil, err
+	}
+	return &plans[0], nil
 }
 
 func (r *EMRRepository) UpdateCarePlan(ctx context.Context, professionalID, planID string, status, notes *string) (*models.CarePlan, error) {

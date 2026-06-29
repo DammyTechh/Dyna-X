@@ -160,6 +160,12 @@ export interface ClinicalNote {
   updated_at: string;
 }
 
+export interface CarePlanTask {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
 export interface CarePlan {
   id: string;
   patient_id: string;
@@ -171,6 +177,8 @@ export interface CarePlan {
   end_date?: string;
   status: 'active' | 'completed' | 'paused' | 'cancelled';
   progress_notes?: string;
+  tasks?: CarePlanTask[];
+  shared_with_patient?: boolean;
   created_at: string;
   updated_at: string;
 }

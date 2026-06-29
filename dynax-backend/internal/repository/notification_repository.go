@@ -60,7 +60,6 @@ func (r *NotificationRepository) UnreadCount(ctx context.Context, userID string)
 	return n, err
 }
 
-// Create pushes a new notification (used by other services).
 func (r *NotificationRepository) Create(ctx context.Context, userID, ntype, title, body string, data interface{}) error {
 	raw, _ := json.Marshal(data)
 	_, err := r.db.Exec(ctx,

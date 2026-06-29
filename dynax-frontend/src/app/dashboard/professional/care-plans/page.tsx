@@ -17,6 +17,8 @@ const schema = z.object({
   title: z.string().min(3, 'Title required'),
   description: z.string().optional(),
   goals: z.string().optional(),
+  tasks: z.string().optional(),
+  shared_with_patient: z.boolean().optional(),
   start_date: z.string().min(1, 'Start date required'),
   end_date: z.string().optional(),
 });
@@ -41,15 +43,20 @@ function CarePlansInner() {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { patient_id: defaultPatient, start_date: new Date().toISOString().split('T')[0] },
+    defaultValues: { patient_id: defaultPatient, start_date: new Date().toISOString().split('T')[0], shared_with_patient: true },
   });
 
   const onSubmit = async (data: FormData) => {
     const goals = data.goals
       ? data.goals.split('\n').map((g) => g.trim()).filter(Boolean)
       : [];
+    const tasks = data.tasks
+      ? data.tasks.split('\n').map((t) => t.trim()).filter(Boolean).map((label, i) => ({
+          id: `t${Date.now()}_${i}`, label, done: false,
+        }))
+      : [];
     try {
-      await create({ ...data, goals });
+      await create({ ...data, goals, tasks, shared_with_patient: data.shared_with_patient ?? true });
       toast.success('Care plan created!');
       reset();
       setShowForm(false);
@@ -118,6 +125,23 @@ function CarePlansInner() {
                   <textarea {...register('goals')} rows={4}
                     placeholder={`Restore independent ambulation with prosthesis\nAchieve 90° knee flexion\nReturn to ADLs without assistance\nReduce pain to ≤ 2/10`}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Tasks <span className="text-slate-400 font-normal">(one per line — the patient can tick these off)</span>
+                  </label>
+                  <textarea {...register('tasks')} rows={4}
+                    placeholder={`Do 3 sets of heel raises daily\nWalk 10 minutes morning and evening\nApply ice after exercises\nLog pain score each night`}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input type="checkbox" {...register('shared_with_patient')}
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-200" />
+                    <span className="text-sm text-slate-700">
+                      Share with patient <span className="text-slate-400 font-normal">— show this plan on their dashboard (uncheck to keep as a private draft)</span>
+                    </span>
+                  </label>
                 </div>
               </div>
 

@@ -1,8 +1,8 @@
 'use client';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useCarePlans } from '@/hooks/useApi';
-import { Heart, Loader2, Target, Calendar, CheckCircle2 } from 'lucide-react';
+import { usePatientCarePlans, useUpdateCarePlanTasks } from '@/hooks/useApi';
+import { Heart, Loader2, Target, Calendar, CheckCircle2, Circle } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -14,7 +14,7 @@ const STATUS_CONFIG = {
 };
 
 export default function PatientCarePlansPage() {
-  const { data: plans, isLoading } = useCarePlans();
+  const { data: plans, isLoading } = usePatientCarePlans();
 
   const activePlans = (plans || []).filter((p) => p.status === 'active');
   const otherPlans = (plans || []).filter((p) => p.status !== 'active');
@@ -71,9 +71,15 @@ export default function PatientCarePlansPage() {
   );
 }
 
-function CarePlanCard({ plan }: { plan: ReturnType<typeof useCarePlans>['data'] extends (infer T)[] | undefined ? T : never }) {
+function CarePlanCard({ plan }: { plan: ReturnType<typeof usePatientCarePlans>['data'] extends (infer T)[] | undefined ? T : never }) {
+  const updateTasks = useUpdateCarePlanTasks();
   if (!plan) return null;
   const statusCfg = STATUS_CONFIG[plan.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.active;
+  const toggleTask = (taskId: string) => {
+    if (!plan.tasks) return;
+    const updated = plan.tasks.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t));
+    updateTasks.mutate({ planId: plan.id, tasks: updated });
+  };
 
   return (
     <div className={cn('bg-white rounded-2xl border-2 shadow-sm p-5', statusCfg.color)}>
@@ -115,6 +121,30 @@ function CarePlanCard({ plan }: { plan: ReturnType<typeof useCarePlans>['data'] 
           {plan.goals.length > 4 && (
             <p className="text-xs text-slate-400 pl-5">+{plan.goals.length - 4} more goals</p>
           )}
+        </div>
+      )}
+
+      {plan.tasks && plan.tasks.length > 0 && (
+        <div className="space-y-1.5 mt-3 pt-3 border-t border-slate-100">
+          <p className="text-xs font-semibold text-slate-500 mb-2 flex items-center justify-between">
+            <span>Tasks</span>
+            <span className="text-[10px] text-slate-400">
+              {plan.tasks.filter((t) => t.done).length}/{plan.tasks.length} done
+            </span>
+          </p>
+          {plan.tasks.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => toggleTask(t.id)}
+              disabled={updateTasks.isPending}
+              className="w-full flex items-start gap-2 text-xs text-left group disabled:opacity-60"
+            >
+              {t.done
+                ? <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                : <Circle className="w-4 h-4 text-slate-300 group-hover:text-blue-400 flex-shrink-0 mt-0.5" />}
+              <span className={cn('leading-relaxed', t.done ? 'line-through text-slate-400' : 'text-slate-700')}>{t.label}</span>
+            </button>
+          ))}
         </div>
       )}
 

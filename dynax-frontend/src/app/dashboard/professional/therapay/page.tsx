@@ -30,9 +30,9 @@ const STATUS_COLORS: Record<string, string> = {
 const schema = z.object({
   patient_id: z.string().min(1, 'Patient ID is required'),
   plan_type: z.string().min(1, 'Select a plan type'),
-  total_amount: z.number().min(1, 'Amount must be greater than 0'),
-  sessions_total: z.number().optional(),
-  installment_amount: z.number().optional(),
+  total_amount: z.coerce.number().min(1, 'Amount must be greater than 0'),
+  sessions_total: z.coerce.number().optional(),
+  installment_amount: z.coerce.number().optional(),
   installment_interval: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;

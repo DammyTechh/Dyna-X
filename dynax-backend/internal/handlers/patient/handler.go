@@ -1,6 +1,8 @@
 package patient
 
 import (
+	"encoding/json"
+
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
 	"github.com/dynalimb/dynax-backend/pkg/response"
@@ -22,6 +24,7 @@ type Service interface {
 	GetAppointments(userID string, q *models.PaginationQuery) ([]models.Appointment, int64, error)
 	GetSessions(userID string, q *models.PaginationQuery) ([]models.TherapySession, int64, error)
 	GetCarePlans(userID string) ([]models.CarePlan, error)
+	UpdateCarePlanTasks(userID, planID string, tasks json.RawMessage) (*models.CarePlan, error)
 	GetRehabHistory(userID string, q *models.PaginationQuery) ([]interface{}, int64, error)
 }
 
@@ -247,4 +250,21 @@ func (h *Handler) GetRehabHistory(c *gin.Context) {
 	response.Paginated(c, history, &response.Meta{
 		Page: q.Page, PageSize: q.PageSize, Total: total, TotalPages: totalPages,
 	})
+}
+
+// UpdateCarePlanTasks lets a patient tick care-plan tasks complete.
+func (h *Handler) UpdateCarePlanTasks(c *gin.Context) {
+	planID := c.Param("plan_id")
+	var req models.UpdateCarePlanTasksRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Request body is malformed")
+		return
+	}
+	userID := middleware.GetUserID(c)
+	plan, err := h.service.UpdateCarePlanTasks(userID, planID, req.Tasks)
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Tasks updated", plan)
 }

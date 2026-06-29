@@ -604,6 +604,10 @@ func (s *PatientService) GetCarePlans(userID string) ([]models.CarePlan, error) 
 	return s.emr.ListCarePlansForPatient(context.Background(), userID)
 }
 
+func (s *PatientService) UpdateCarePlanTasks(userID, planID string, tasks json.RawMessage) (*models.CarePlan, error) {
+	return s.emr.UpdateCarePlanTasks(context.Background(), userID, planID, tasks)
+}
+
 func (s *PatientService) GetRehabHistory(userID string, q *models.PaginationQuery) ([]interface{}, int64, error) {
 	return []interface{}{}, 0, nil
 }
@@ -702,8 +706,11 @@ func (s *EMRService) CreateCarePlan(professionalID string, req *models.CreateCar
 	if err != nil {
 		return nil, err
 	}
-	_ = s.notif.Create(ctx, req.PatientID, "care_plan", "New care plan",
-		"Your care team created a new care plan: "+req.Title, map[string]string{"care_plan_id": plan.ID})
+	shared := req.SharedWithPatient == nil || *req.SharedWithPatient
+	if shared {
+		_ = s.notif.Create(ctx, req.PatientID, "care_plan", "New care plan",
+			"Your care team created a new care plan: "+req.Title, map[string]string{"care_plan_id": plan.ID})
+	}
 	return plan, nil
 }
 func (s *EMRService) GetCarePlans(professionalID, patientID string) ([]models.CarePlan, error) {

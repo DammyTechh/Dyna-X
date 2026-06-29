@@ -4,7 +4,7 @@ import { authService } from '@/lib/auth';
 import { useAuthStore } from '@/store/auth';
 import type {
   AuthResponse, ProfessionalProfile, PatientProfile, Appointment,
-  TherapySession, ClinicalNote, CarePlan, TheraPay, Conversation, Message,
+  TherapySession, ClinicalNote, CarePlan, CarePlanTask, TheraPay, Conversation, Message,
   Notification, AIConversation, AdminStats, User, PaginationParams,
   PaginatedResponse, DeviceMeasurement,
 } from '@/types';
@@ -223,10 +223,28 @@ export const useCarePlans = (patientId?: string) =>
     queryFn: () => apiGet('/emr/care-plans', patientId ? { patient_id: patientId } : undefined),
   });
 
+// Patient's own care plans — uses the patient route (the /emr route is gated to
+// professionals, which is why plans never showed on the patient dashboard).
+export const usePatientCarePlans = () =>
+  useQuery<CarePlan[]>({
+    queryKey: ['patient', 'care-plans'],
+    queryFn: () => apiGet('/patient/care-plans'),
+  });
+
+// Patient ticks care-plan tasks complete (sends the full updated task list).
+export const useUpdateCarePlanTasks = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ planId, tasks }: { planId: string; tasks: CarePlanTask[] }) =>
+      apiPatch<CarePlan>(`/patient/care-plans/${planId}/tasks`, { tasks }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['patient', 'care-plans'] }),
+  });
+};
+
 export const useCreateCarePlan = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { patient_id: string; title: string; description?: string; goals?: string[]; start_date: string }) =>
+    mutationFn: (data: { patient_id: string; title: string; description?: string; goals?: string[]; start_date: string; end_date?: string; tasks?: CarePlanTask[]; shared_with_patient?: boolean }) =>
       apiPost<CarePlan>('/emr/care-plans', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['emr', 'care-plans'] }),
   });

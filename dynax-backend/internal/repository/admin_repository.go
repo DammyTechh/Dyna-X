@@ -7,7 +7,6 @@ import (
 	"github.com/dynalimb/dynax-backend/internal/repository/db"
 )
 
-// AdminRepository powers the admin dashboard (stats, users, listings, audit).
 type AdminRepository struct{ db *db.Pool }
 
 func NewAdminRepository(db *db.Pool) *AdminRepository { return &AdminRepository{db: db} }

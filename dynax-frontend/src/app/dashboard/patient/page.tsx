@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import {
   usePatientProfile, useMyProfessionals, usePatientAppointments,
-  usePatientSessions, useConnectToProfessional, useCarePlans,
+  usePatientSessions, useConnectToProfessional, usePatientCarePlans,
 } from '@/hooks/useApi';
 import {
   UserCheck, Calendar, Activity, Heart, Loader2,
@@ -20,7 +20,7 @@ export default function PatientDashboard() {
   const { data: professionals } = useMyProfessionals();
   const { data: appointments } = usePatientAppointments({ page: 1, page_size: 5 });
   const { data: sessions } = usePatientSessions({ page: 1, page_size: 5 });
-  const { data: carePlans } = useCarePlans();
+  const { data: carePlans } = usePatientCarePlans();
   const { mutateAsync: connect, isPending: connecting } = useConnectToProfessional();
 
   const [pinCode, setPinCode] = useState('');

@@ -160,6 +160,7 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			patient.GET("/appointments", h.Patient.GetAppointments)
 			patient.GET("/sessions", h.Patient.GetSessions)
 			patient.GET("/care-plans", h.Patient.GetCarePlans)
+			patient.PATCH("/care-plans/:plan_id/tasks", h.Patient.UpdateCarePlanTasks)
 			patient.GET("/rehab-history", h.Patient.GetRehabHistory)
 		}
 
