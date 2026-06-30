@@ -285,6 +285,7 @@ type ProfessionalService struct {
 	appts    *repository.AppointmentRepository
 	sessions *repository.SessionRepository
 	conns    *repository.ConnectionRepository
+	notif    *repository.NotificationRepository
 	mailer   *email.Client
 }
 
@@ -295,9 +296,10 @@ func NewProfessionalService(
 	appts *repository.AppointmentRepository,
 	sessions *repository.SessionRepository,
 	conns *repository.ConnectionRepository,
+	notif *repository.NotificationRepository,
 	mailer *email.Client,
 ) *ProfessionalService {
-	return &ProfessionalService{cfg: cfg, users: users, profs: profs, appts: appts, sessions: sessions, conns: conns, mailer: mailer}
+	return &ProfessionalService{cfg: cfg, users: users, profs: profs, appts: appts, sessions: sessions, conns: conns, notif: notif, mailer: mailer}
 }
 
 func (s *ProfessionalService) GetProfile(userID string) (*models.ProfessionalProfile, error) {
@@ -439,7 +441,21 @@ func (s *ProfessionalService) UpdateAppointment(userID, appointmentID string, re
 			return nil, err
 		}
 	}
-	return s.appts.FindByID(ctx, appointmentID)
+	appt, err := s.appts.FindByID(ctx, appointmentID)
+	if err == nil && appt != nil && req.Status != nil {
+		switch *req.Status {
+		case "scheduled":
+			_ = s.notif.Create(ctx, appt.PatientID, "appointment", "Appointment confirmed",
+				"Your appointment request was approved.", map[string]string{"appointment_id": appointmentID})
+		case "rejected":
+			_ = s.notif.Create(ctx, appt.PatientID, "appointment", "Appointment declined",
+				"Your appointment request was declined. Try another time.", map[string]string{"appointment_id": appointmentID})
+		case "cancelled":
+			_ = s.notif.Create(ctx, appt.PatientID, "appointment", "Appointment cancelled",
+				"Your appointment was cancelled.", map[string]string{"appointment_id": appointmentID})
+		}
+	}
+	return appt, err
 }
 
 func (s *ProfessionalService) CancelAppointment(userID, appointmentID string) error {
@@ -491,6 +507,7 @@ type PatientService struct {
 	sessions *repository.SessionRepository
 	conns    *repository.ConnectionRepository
 	emr      *repository.EMRRepository
+	notif    *repository.NotificationRepository
 	mailer   *email.Client
 }
 
@@ -502,9 +519,10 @@ func NewPatientService(
 	sessions *repository.SessionRepository,
 	conns *repository.ConnectionRepository,
 	emr *repository.EMRRepository,
+	notif *repository.NotificationRepository,
 	mailer *email.Client,
 ) *PatientService {
-	return &PatientService{cfg: cfg, users: users, profs: profs, appts: appts, sessions: sessions, conns: conns, emr: emr, mailer: mailer}
+	return &PatientService{cfg: cfg, users: users, profs: profs, appts: appts, sessions: sessions, conns: conns, emr: emr, notif: notif, mailer: mailer}
 }
 
 func (s *PatientService) GetProfile(userID string) (*models.PatientProfile, error) {
@@ -596,6 +614,63 @@ func (s *PatientService) GetAppointments(userID string, q *models.PaginationQuer
 	return s.appts.ListByPatient(context.Background(), userID, q)
 }
 
+// RequestAppointment lets a patient request a slot with a connected professional.
+func (s *PatientService) RequestAppointment(userID string, req *models.RequestAppointmentRequest) (*models.Appointment, error) {
+	ctx := context.Background()
+	when, err := time.Parse(time.RFC3339, req.ScheduledAt)
+	if err != nil {
+		return nil, errors.New("invalid_scheduled_at")
+	}
+	a := &models.Appointment{
+		PatientID:       userID,
+		ProfessionalID:  req.ProfessionalID,
+		Title:           req.Title,
+		Description:     nilIfEmpty(req.Description),
+		ScheduledAt:     when,
+		DurationMinutes: req.DurationMinutes,
+		SessionType:     req.SessionType,
+	}
+	created, err := s.appts.CreateRequest(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.notif.Create(ctx, req.ProfessionalID, "appointment", "New appointment request",
+		"A patient requested an appointment: "+req.Title, map[string]string{"appointment_id": created.ID})
+	return created, nil
+}
+
+// CancelAppointment cancels the patient's own appointment.
+func (s *PatientService) CancelAppointment(userID, appointmentID string) error {
+	ctx := context.Background()
+	appt, _ := s.appts.FindByID(ctx, appointmentID)
+	if err := s.appts.CancelByPatient(ctx, appointmentID, userID); err != nil {
+		return err
+	}
+	if appt != nil {
+		_ = s.notif.Create(ctx, appt.ProfessionalID, "appointment", "Appointment cancelled",
+			"A patient cancelled their appointment.", map[string]string{"appointment_id": appointmentID})
+	}
+	return nil
+}
+
+// RescheduleAppointment proposes a new time (re-enters the requested state).
+func (s *PatientService) RescheduleAppointment(userID, appointmentID string, req *models.RescheduleAppointmentRequest) (*models.Appointment, error) {
+	ctx := context.Background()
+	when, err := time.Parse(time.RFC3339, req.ScheduledAt)
+	if err != nil {
+		return nil, errors.New("invalid_scheduled_at")
+	}
+	if err := s.appts.RescheduleByPatient(ctx, appointmentID, userID, when); err != nil {
+		return nil, err
+	}
+	appt, _ := s.appts.FindByID(ctx, appointmentID)
+	if appt != nil {
+		_ = s.notif.Create(ctx, appt.ProfessionalID, "appointment", "Reschedule requested",
+			"A patient proposed a new appointment time.", map[string]string{"appointment_id": appointmentID})
+	}
+	return appt, nil
+}
+
 func (s *PatientService) GetSessions(userID string, q *models.PaginationQuery) ([]models.TherapySession, int64, error) {
 	return s.sessions.ListByPatient(context.Background(), userID, q)
 }
@@ -678,6 +753,20 @@ type EMRService struct {
 
 func NewEMRService(cfg *config.Config, emr *repository.EMRRepository, users *repository.UserRepository, notif *repository.NotificationRepository) *EMRService {
 	return &EMRService{cfg: cfg, emr: emr, users: users, notif: notif}
+}
+
+// ── Patient Records ──
+func (s *EMRService) CreatePatientRecord(professionalID string, req *models.CreatePatientRecordRequest) (*models.PatientRecord, error) {
+	return s.emr.CreatePatientRecord(context.Background(), professionalID, req)
+}
+func (s *EMRService) ListPatientRecords(professionalID string) ([]models.PatientRecord, error) {
+	return s.emr.ListPatientRecords(context.Background(), professionalID)
+}
+func (s *EMRService) GetPatientRecord(professionalID, recordID string) (*models.PatientRecord, error) {
+	return s.emr.GetPatientRecord(context.Background(), professionalID, recordID)
+}
+func (s *EMRService) UpdatePatientRecord(professionalID, recordID string, req *models.CreatePatientRecordRequest) (*models.PatientRecord, error) {
+	return s.emr.UpdatePatientRecord(context.Background(), professionalID, recordID, req)
 }
 
 func (s *EMRService) CreateNote(professionalID string, req *models.CreateClinicalNoteRequest) (*models.ClinicalNote, error) {
@@ -900,8 +989,29 @@ func (s *AdminService) ListPatients(q *models.PaginationQuery) ([]models.Patient
 	return s.admin.ListPatients(context.Background(), q)
 }
 func (s *AdminService) AssignProfessional(adminID string, req *models.AssignProfessionalRequest) error {
-	_, err := s.conns.Create(context.Background(), req.PatientID, req.ProfessionalID, req.Role, adminID)
-	return err
+	ctx := context.Background()
+	patientID := req.PatientID
+	if patientID == "" && req.PatientEmail != "" {
+		u, err := s.users.FindByEmail(ctx, req.PatientEmail)
+		if err != nil {
+			return err
+		}
+		if u == nil {
+			return errors.New("patient_not_found")
+		}
+		patientID = u.ID
+	}
+	if patientID == "" {
+		return errors.New("patient_required")
+	}
+	if _, err := s.conns.Create(ctx, patientID, req.ProfessionalID, req.Role, adminID); err != nil {
+		return err
+	}
+	_ = s.notif.Create(ctx, patientID, "general", "You're connected",
+		"An admin connected you with a professional. You can now book and message them.", nil)
+	_ = s.notif.Create(ctx, req.ProfessionalID, "general", "New patient connected",
+		"An admin connected a patient to your care.", nil)
+	return nil
 }
 func (s *AdminService) ListSessions(q *models.PaginationQuery) ([]models.TherapySession, int64, error) {
 	return s.admin.ListSessions(context.Background(), q)
@@ -1073,10 +1183,11 @@ type MessagingService struct {
 	cfg   *config.Config
 	msg   *repository.MessagingRepository
 	users *repository.UserRepository
+	notif *repository.NotificationRepository
 }
 
-func NewMessagingService(cfg *config.Config, msg *repository.MessagingRepository, users *repository.UserRepository) *MessagingService {
-	return &MessagingService{cfg: cfg, msg: msg, users: users}
+func NewMessagingService(cfg *config.Config, msg *repository.MessagingRepository, users *repository.UserRepository, notif *repository.NotificationRepository) *MessagingService {
+	return &MessagingService{cfg: cfg, msg: msg, users: users, notif: notif}
 }
 
 func (s *MessagingService) GetConversations(userID string) ([]models.Conversation, error) {
@@ -1100,7 +1211,51 @@ func (s *MessagingService) GetMessages(userID, conversationID string, q *models.
 }
 
 func (s *MessagingService) SendMessage(userID, senderType, conversationID string, req *models.SendMessageRequest) (*models.Message, error) {
-	return s.msg.SendMessage(context.Background(), conversationID, userID, senderType, req)
+	ctx := context.Background()
+	msg, err := s.msg.SendMessage(ctx, conversationID, userID, senderType, req)
+	if err != nil {
+		return nil, err
+	}
+	// Notify the other participant in-app (best-effort).
+	if conv, _ := s.msg.GetByID(ctx, conversationID); conv != nil {
+		recipient := otherParticipant(conv, userID)
+		if recipient != "" {
+			preview := req.Content
+			if len(preview) > 80 {
+				preview = preview[:80] + "…"
+			}
+			_ = s.notif.Create(ctx, recipient, "message", "New message", preview,
+				map[string]string{"conversation_id": conversationID})
+		}
+	}
+	return msg, nil
+}
+
+// StartAdminConversation opens (or returns) a conversation between the caller and an admin.
+func (s *MessagingService) StartAdminConversation(userID string) (*models.Conversation, error) {
+	ctx := context.Background()
+	admin, err := s.users.FindFirstAdmin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if admin == nil {
+		return nil, errors.New("no_admin_available")
+	}
+	userRole := "patient"
+	if u, _ := s.users.FindByID(ctx, userID); u != nil {
+		userRole = string(u.Role)
+	}
+	return s.msg.GetOrCreate(ctx, userID, userRole, admin.ID, "admin")
+}
+
+// otherParticipant returns the participant id that isn't the sender.
+func otherParticipant(conv *models.Conversation, senderID string) string {
+	for _, p := range []*string{conv.PatientID, conv.ProfessionalID, conv.AdminID} {
+		if p != nil && *p != "" && *p != senderID {
+			return *p
+		}
+	}
+	return ""
 }
 
 func (s *MessagingService) MarkConversationRead(userID, conversationID string) error {

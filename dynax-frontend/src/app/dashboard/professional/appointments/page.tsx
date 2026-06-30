@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useProfessionalAppointments, useCreateAppointment, useMyPatients, useCancelAppointment } from '@/hooks/useApi';
+import { useProfessionalAppointments, useCreateAppointment, useMyPatients, useCancelAppointment, useUpdateAppointment } from '@/hooks/useApi';
 import { VideoCall } from '@/components/video/VideoCall';
 import { Calendar, Plus, Video, MapPin, Clock, Loader2, X, Check } from 'lucide-react';
 import { format, isPast } from 'date-fns';
@@ -28,6 +28,8 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
   no_show: 'bg-slate-100 text-slate-600',
+  requested: 'bg-amber-100 text-amber-700',
+  rejected: 'bg-rose-100 text-rose-700',
 };
 
 export default function AppointmentsPage() {
@@ -38,6 +40,17 @@ export default function AppointmentsPage() {
   const { data: patients } = useMyPatients({ page: 1, page_size: 100 });
   const { mutateAsync: create, isPending: creating } = useCreateAppointment();
   const { mutateAsync: cancel } = useCancelAppointment();
+  const { mutateAsync: updateAppt, isPending: updating } = useUpdateAppointment();
+
+  const decide = async (id: string, status: 'scheduled' | 'rejected') => {
+    try {
+      await updateAppt({ id, status });
+      toast.success(status === 'scheduled' ? 'Appointment approved' : 'Appointment declined');
+      refetch();
+    } catch (e) {
+      toast.error((e as Error).message || 'Could not update appointment');
+    }
+  };
 
   const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -202,6 +215,18 @@ export default function AppointmentsPage() {
                     </div>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      {appt.status === 'requested' && (
+                        <>
+                          <button onClick={() => decide(appt.id, 'scheduled')} disabled={updating}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-60">
+                            <Check className="w-3.5 h-3.5" /> Approve
+                          </button>
+                          <button onClick={() => decide(appt.id, 'rejected')} disabled={updating}
+                            className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-200 text-rose-600 text-xs rounded-lg font-semibold hover:bg-rose-50 transition-colors disabled:opacity-60">
+                            <X className="w-3.5 h-3.5" /> Decline
+                          </button>
+                        </>
+                      )}
                       {appt.status === 'scheduled' && appt.session_type === 'virtual' && (
                         <button onClick={() => setCallRoom(appt.id)}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg font-semibold hover:bg-blue-700 transition-colors">

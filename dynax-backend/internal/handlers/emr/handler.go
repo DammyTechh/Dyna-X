@@ -24,6 +24,10 @@ type Service interface {
 	UpdateCarePlan(professionalID, planID string, status, notes *string) (*models.CarePlan, error)
 	CreateDeviceMeasurement(professionalID string, req *models.CreateDeviceMeasurementRequest) (*models.DeviceMeasurement, error)
 	GetDeviceMeasurements(professionalID, patientID string) ([]models.DeviceMeasurement, error)
+	CreatePatientRecord(professionalID string, req *models.CreatePatientRecordRequest) (*models.PatientRecord, error)
+	ListPatientRecords(professionalID string) ([]models.PatientRecord, error)
+	GetPatientRecord(professionalID, recordID string) (*models.PatientRecord, error)
+	UpdatePatientRecord(professionalID, recordID string, req *models.CreatePatientRecordRequest) (*models.PatientRecord, error)
 	UpdateDeviceStatus(professionalID, deviceID, status string) (*models.DeviceMeasurement, error)
 	CreateDeviceShare(professionalID, deviceID, permission string) (*repository.DeviceShare, error)
 	GetSharedDevice(token string) (*models.DeviceMeasurement, string, error)
@@ -397,4 +401,60 @@ func (h *Handler) AddDeviceComment(c *gin.Context) {
 		return
 	}
 	response.Created(c, "Comment added", comment)
+}
+
+// ─── Patient Records ─────────────────────────────────────────────────────────
+
+func (h *Handler) CreatePatientRecord(c *gin.Context) {
+	var req models.CreatePatientRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Request body is malformed")
+		return
+	}
+	userID := middleware.GetUserID(c)
+	rec, err := h.service.CreatePatientRecord(userID, &req)
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.Created(c, "Patient record created", rec)
+}
+
+func (h *Handler) ListPatientRecords(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	recs, err := h.service.ListPatientRecords(userID)
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Patient records", recs)
+}
+
+func (h *Handler) GetPatientRecord(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	rec, err := h.service.GetPatientRecord(userID, c.Param("record_id"))
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	if rec == nil {
+		response.NotFound(c, "Patient record")
+		return
+	}
+	response.OK(c, "Patient record", rec)
+}
+
+func (h *Handler) UpdatePatientRecord(c *gin.Context) {
+	var req models.CreatePatientRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Request body is malformed")
+		return
+	}
+	userID := middleware.GetUserID(c)
+	rec, err := h.service.UpdatePatientRecord(userID, c.Param("record_id"), &req)
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Patient record updated", rec)
 }

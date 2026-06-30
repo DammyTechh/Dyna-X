@@ -22,6 +22,9 @@ type Service interface {
 	DisconnectFromProfessional(userID, professionalID string) error
 	GetMyProfessionals(userID string) ([]models.ProfessionalProfile, error)
 	GetAppointments(userID string, q *models.PaginationQuery) ([]models.Appointment, int64, error)
+	RequestAppointment(userID string, req *models.RequestAppointmentRequest) (*models.Appointment, error)
+	CancelAppointment(userID, appointmentID string) error
+	RescheduleAppointment(userID, appointmentID string, req *models.RescheduleAppointmentRequest) (*models.Appointment, error)
 	GetSessions(userID string, q *models.PaginationQuery) ([]models.TherapySession, int64, error)
 	GetCarePlans(userID string) ([]models.CarePlan, error)
 	UpdateCarePlanTasks(userID, planID string, tasks json.RawMessage) (*models.CarePlan, error)
@@ -267,4 +270,48 @@ func (h *Handler) UpdateCarePlanTasks(c *gin.Context) {
 		return
 	}
 	response.OK(c, "Tasks updated", plan)
+}
+
+// RequestAppointment lets a patient request an appointment with a professional.
+func (h *Handler) RequestAppointment(c *gin.Context) {
+	var req models.RequestAppointmentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Request body is malformed")
+		return
+	}
+	userID := middleware.GetUserID(c)
+	appt, err := h.service.RequestAppointment(userID, &req)
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Appointment requested", appt)
+}
+
+// CancelAppointment cancels the patient's own appointment.
+func (h *Handler) CancelAppointment(c *gin.Context) {
+	apptID := c.Param("appointment_id")
+	userID := middleware.GetUserID(c)
+	if err := h.service.CancelAppointment(userID, apptID); err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Appointment cancelled", nil)
+}
+
+// RescheduleAppointment proposes a new time for the patient's appointment.
+func (h *Handler) RescheduleAppointment(c *gin.Context) {
+	apptID := c.Param("appointment_id")
+	var req models.RescheduleAppointmentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Request body is malformed")
+		return
+	}
+	userID := middleware.GetUserID(c)
+	appt, err := h.service.RescheduleAppointment(userID, apptID, &req)
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Appointment rescheduled", appt)
 }

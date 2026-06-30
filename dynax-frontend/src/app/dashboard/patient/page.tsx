@@ -4,16 +4,17 @@ import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import {
   usePatientProfile, useMyProfessionals, usePatientAppointments,
-  usePatientSessions, useConnectToProfessional, usePatientCarePlans,
+  usePatientSessions, useConnectToProfessional, usePatientCarePlans, useStartAdminConversation,
 } from '@/hooks/useApi';
 import {
   UserCheck, Calendar, Activity, Heart, Loader2,
-  Plus, Link as LinkIcon, Clock, CheckCircle2, MapPin,
+  Plus, Link as LinkIcon, Clock, CheckCircle2, MapPin, MessageCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isPast, isToday } from 'date-fns';
 import { getRoleLabel, getRoleColor } from '@/lib/routing';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 export default function PatientDashboard() {
   const { data: profile, isLoading: loadingProfile } = usePatientProfile();
@@ -22,6 +23,17 @@ export default function PatientDashboard() {
   const { data: sessions } = usePatientSessions({ page: 1, page_size: 5 });
   const { data: carePlans } = usePatientCarePlans();
   const { mutateAsync: connect, isPending: connecting } = useConnectToProfessional();
+  const { mutateAsync: startAdminChat, isPending: startingAdmin } = useStartAdminConversation();
+  const router = useRouter();
+
+  const messageAdmin = async () => {
+    try {
+      const conv = await startAdminChat();
+      router.push(`/dashboard/messages?c=${conv.id}`);
+    } catch (err: unknown) {
+      toast.error((err as Error).message || 'Could not reach an admin right now.');
+    }
+  };
 
   const [pinCode, setPinCode] = useState('');
   const [showConnect, setShowConnect] = useState(false);
@@ -114,6 +126,21 @@ export default function PatientDashboard() {
                 </div>
               </div>
             )}
+
+            <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-slate-700">New here, or no DX-PIN yet?</p>
+                <p className="text-xs text-slate-500 mt-0.5">Message an admin — they&apos;ll connect you with the right professional.</p>
+              </div>
+              <button
+                onClick={messageAdmin}
+                disabled={startingAdmin}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-60"
+              >
+                {startingAdmin ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}
+                Message admin
+              </button>
+            </div>
 
             {/* Professionals list */}
             {professionals && professionals.length > 0 ? (

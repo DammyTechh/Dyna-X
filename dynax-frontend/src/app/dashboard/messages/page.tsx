@@ -5,17 +5,18 @@ import { useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import {
   useConversations, useMessages, useSendMessage, useStartConversation,
-  useMyProfessionals, useMyPatients, useMe,
+  useMyProfessionals, useMyPatients, useMe, useAdminProfessionals, useAdminPatients, useAssignProfessional,
 } from '@/hooks/useApi';
 import { VideoCall } from '@/components/video/VideoCall';
 import {
   Send, Search, Loader2, MessageSquare, CheckCheck, Check, Paperclip,
-  Plus, X, Video, ArrowLeft,
+  Plus, X, Video, Phone, ArrowLeft,
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { tokenStore } from '@/lib/api';
 import { getRoleLabel } from '@/lib/routing';
+import { toast } from 'sonner';
 import type { Conversation, Message } from '@/types';
 
 interface Contact { userId: string; name: string; sub: string; }
@@ -26,19 +27,32 @@ function MessagesInner() {
   const [inputText, setInputText] = useState('');
   const [search, setSearch] = useState('');
   const [composing, setComposing] = useState(false);
-  const [inCall, setInCall] = useState(false);
+  const [connectEmail, setConnectEmail] = useState('');
+  const [connectProf, setConnectProf] = useState('');
+  const [callMode, setCallMode] = useState<'video' | 'audio' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: me } = useMe();
   const myId = me?.user_id || tokenStore.getUserId() || '';
   const myRole = me?.role || tokenStore.getRole() || '';
   const isPatient = myRole === 'patient';
+  const isAdmin = myRole === 'admin';
 
   // Role-aware contact list (people I'm allowed to message).
   const { data: professionals } = useMyProfessionals();
   const { data: patientsPage } = useMyPatients({ page: 1, page_size: 100 });
+  // Admin can message ANY professional or patient (not just connected ones).
+  const { data: adminProfs } = useAdminProfessionals('approved', isAdmin);
+  const { data: adminPatients } = useAdminPatients({ page: 1, page_size: 200 }, isAdmin);
 
   const contacts: Contact[] = useMemo(() => {
+    if (isAdmin) {
+      const profs = ((adminProfs as { data?: { user_id: string; full_name: string; professional_type: string }[] } | undefined)?.data || [])
+        .map((p) => ({ userId: p.user_id, name: p.full_name, sub: getRoleLabel(p.professional_type) }));
+      const pats = ((adminPatients as { data?: { user_id: string; full_name: string }[] } | undefined)?.data || [])
+        .map((p) => ({ userId: p.user_id, name: p.full_name, sub: 'Patient' }));
+      return [...profs, ...pats];
+    }
     if (isPatient) {
       return (professionals || []).map((p) => ({
         userId: p.user_id, name: p.full_name, sub: getRoleLabel(p.professional_type),
@@ -47,7 +61,7 @@ function MessagesInner() {
     return (patientsPage?.data || []).map((p) => ({
       userId: p.user_id, name: p.full_name, sub: p.condition || 'Patient',
     }));
-  }, [isPatient, professionals, patientsPage]);
+  }, [isAdmin, isPatient, professionals, patientsPage, adminProfs, adminPatients]);
 
   const contactById = useMemo(() => {
     const m = new Map<string, Contact>();
@@ -59,6 +73,24 @@ function MessagesInner() {
   const { data: messagesData, isLoading: loadingMsgs } = useMessages(selectedConv || '', { page: 1, page_size: 50 });
   const { mutateAsync: sendMessage, isPending: sending } = useSendMessage(selectedConv || '');
   const { mutateAsync: startConversation, isPending: starting } = useStartConversation();
+  const { mutateAsync: assignProfessional, isPending: connecting } = useAssignProfessional();
+
+  const adminProfList = ((adminProfs as { data?: { user_id: string; full_name: string; professional_type: string }[] } | undefined)?.data) || [];
+  const doConnect = async () => {
+    if (!connectEmail.trim() || !connectProf) { toast.error('Enter the patient email and pick a professional'); return; }
+    const prof = adminProfList.find((p) => p.user_id === connectProf);
+    try {
+      await assignProfessional({
+        patient_email: connectEmail.trim(),
+        professional_id: connectProf,
+        role: prof?.professional_type || 'physiotherapist',
+      });
+      toast.success('Patient connected to professional');
+      setConnectEmail(''); setConnectProf('');
+    } catch (e) {
+      toast.error((e as Error).message || 'Could not connect — check the email is registered');
+    }
+  };
   const messages = messagesData?.data || [];
 
   // Resolve the "other participant" of a conversation and their display name.
@@ -151,8 +183,40 @@ function MessagesInner() {
           {/* Compose: pick a connected contact to start a chat */}
           {composing ? (
             <div className="flex-1 overflow-y-auto">
+              {isAdmin && (
+                <div className="m-3 p-3 rounded-xl border border-indigo-100 bg-indigo-50/60 space-y-2">
+                  <p className="text-xs font-semibold text-indigo-900">Connect a patient to a professional</p>
+                  <input
+                    value={connectEmail}
+                    onChange={(e) => setConnectEmail(e.target.value)}
+                    placeholder="Patient email"
+                    className="w-full px-3 py-2 rounded-lg border border-indigo-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  />
+                  <select
+                    value={connectProf}
+                    onChange={(e) => setConnectProf(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-indigo-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  >
+                    <option value="">Select professional…</option>
+                    {adminProfList.map((p) => (
+                      <option key={p.user_id} value={p.user_id}>{p.full_name} · {getRoleLabel(p.professional_type)}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={doConnect}
+                    disabled={connecting}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                    Connect via DX-PIN
+                  </button>
+                  <p className="text-[11px] text-indigo-700/70 leading-snug">
+                    Ask the patient for the email they registered with, pick the professional, and connect — they&apos;ll both be notified.
+                  </p>
+                </div>
+              )}
               <p className="px-4 pt-3 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                {isPatient ? 'Your care team' : 'Your patients'}
+                {isAdmin ? 'Professionals & patients' : isPatient ? 'Your care team' : 'Your patients'}
               </p>
               {filteredContacts.length > 0 ? (
                 filteredContacts.map((c) => (
@@ -172,7 +236,7 @@ function MessagesInner() {
                 <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
                   <MessageSquare className="w-10 h-10 text-slate-300 mb-3" />
                   <p className="text-slate-500 text-sm font-medium">
-                    {isPatient ? 'No connected professionals' : 'No connected patients'}
+                    {isAdmin ? 'No professionals or patients yet' : isPatient ? 'No connected professionals' : 'No connected patients'}
                   </p>
                   <p className="text-slate-400 text-xs mt-1">
                     {isPatient
@@ -219,13 +283,22 @@ function MessagesInner() {
                   <p className="font-semibold text-sm text-slate-900 truncate">{activeOther?.name || 'Conversation'}</p>
                   <p className="text-xs text-slate-400 truncate">{activeOther?.sub || 'Active'}</p>
                 </div>
-                <button
-                  onClick={() => setInCall(true)}
-                  title="Start video call"
-                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold transition-colors"
-                >
-                  <Video className="w-4 h-4" /> Call
-                </button>
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => setCallMode('audio')}
+                    title="Start audio call"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold transition-colors"
+                  >
+                    <Phone className="w-4 h-4" /> Audio
+                  </button>
+                  <button
+                    onClick={() => setCallMode('video')}
+                    title="Start video call"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-xs font-semibold transition-colors"
+                  >
+                    <Video className="w-4 h-4" /> Video
+                  </button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 py-4 bg-slate-50">
@@ -301,12 +374,13 @@ function MessagesInner() {
         </div>
       </div>
 
-      {inCall && selectedConv && (
+      {callMode && selectedConv && (
         <VideoCall
           roomId={selectedConv}
+          audioOnly={callMode === 'audio'}
           displayName={(me as { full_name?: string } | undefined)?.full_name || activeOther?.name || 'DynaX user'}
-          subject={activeOther?.name ? `Call with ${activeOther.name}` : 'Video call'}
-          onClose={() => setInCall(false)}
+          subject={activeOther?.name ? `Call with ${activeOther.name}` : (callMode === 'audio' ? 'Audio call' : 'Video call')}
+          onClose={() => setCallMode(null)}
         />
       )}
     </DashboardLayout>

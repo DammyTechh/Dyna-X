@@ -64,6 +64,11 @@ func (r *MessagingRepository) GetOrCreate(ctx context.Context, userID, userRole,
 	return r.findConversation(ctx, id)
 }
 
+// GetByID returns a conversation (with participants) by id.
+func (r *MessagingRepository) GetByID(ctx context.Context, id string) (*models.Conversation, error) {
+	return r.findConversation(ctx, id)
+}
+
 func (r *MessagingRepository) findConversation(ctx context.Context, id string) (*models.Conversation, error) {
 	c := &models.Conversation{}
 	err := r.db.QueryRow(ctx,

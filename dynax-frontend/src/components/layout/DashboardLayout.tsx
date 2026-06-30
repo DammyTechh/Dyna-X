@@ -58,7 +58,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       { label: 'Appointments', href: '/dashboard/professional/appointments', icon: Calendar },
       { label: 'Sessions', href: '/dashboard/professional/sessions', icon: Activity },
       { label: 'Clinical Notes', href: '/dashboard/professional/notes', icon: ClipboardList },
+      { label: 'Patient Records', href: '/dashboard/professional/records', icon: FileText },
       { label: 'Care Plans', href: '/dashboard/professional/care-plans', icon: Heart },
+    ] : []),
+    // TheraPay — physiotherapists only (financing applies to physio + patients)
+    ...(role === 'physiotherapist' ? [
       { label: 'TheraPay', href: '/dashboard/professional/therapay', icon: CreditCard },
     ] : []),
     // 3D Editor — Prosthetists & Orthotists only

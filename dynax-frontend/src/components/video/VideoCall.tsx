@@ -10,6 +10,8 @@ interface VideoCallProps {
   displayName?: string;
   /** Subject shown in the call header. */
   subject?: string;
+  /** Start as an audio-only call (camera off, video controls hidden). */
+  audioOnly?: boolean;
   onClose: () => void;
 }
 
@@ -34,7 +36,7 @@ declare global {
   }
 }
 
-export function VideoCall({ roomId, displayName, subject, onClose }: VideoCallProps) {
+export function VideoCall({ roomId, displayName, subject, audioOnly = false, onClose }: VideoCallProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<{ dispose: () => void } | null>(null);
 
@@ -56,15 +58,16 @@ export function VideoCall({ roomId, displayName, subject, onClose }: VideoCallPr
           prejoinPageEnabled: true,
           disableDeepLinking: true,
           startWithAudioMuted: false,
-          startWithVideoMuted: false,
+          startWithVideoMuted: audioOnly,
+          startAudioOnly: audioOnly,
         },
         interfaceConfigOverwrite: {
           SHOW_JITSI_WATERMARK: false,
           DEFAULT_BACKGROUND: '#0f172a',
-          TOOLBAR_BUTTONS: [
-            'microphone', 'camera', 'desktop', 'fullscreen', 'fodeviceselection',
-            'hangup', 'chat', 'settings', 'raisehand', 'videoquality', 'tileview',
-          ],
+          TOOLBAR_BUTTONS: audioOnly
+            ? ['microphone', 'fullscreen', 'fodeviceselection', 'hangup', 'chat', 'settings', 'raisehand']
+            : ['microphone', 'camera', 'desktop', 'fullscreen', 'fodeviceselection',
+               'hangup', 'chat', 'settings', 'raisehand', 'videoquality', 'tileview'],
         },
       });
       api.addEventListener('readyToClose', onClose);
@@ -99,7 +102,7 @@ export function VideoCall({ roomId, displayName, subject, onClose }: VideoCallPr
         <div className="flex items-center gap-2 min-w-0">
           <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
           <p className="text-sm font-semibold text-white truncate">
-            {subject || 'Video call'}
+            {subject || (audioOnly ? 'Audio call' : 'Video call')}
           </p>
         </div>
         <button

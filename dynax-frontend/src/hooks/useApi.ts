@@ -4,7 +4,7 @@ import { authService } from '@/lib/auth';
 import { useAuthStore } from '@/store/auth';
 import type {
   AuthResponse, ProfessionalProfile, PatientProfile, Appointment,
-  TherapySession, ClinicalNote, CarePlan, CarePlanTask, TheraPay, Conversation, Message,
+  TherapySession, ClinicalNote, CarePlan, CarePlanTask, PatientRecord, TheraPay, Conversation, Message,
   Notification, AIConversation, AdminStats, User, PaginationParams,
   PaginatedResponse, DeviceMeasurement,
 } from '@/types';
@@ -173,6 +173,47 @@ export const useCancelAppointment = () => {
   });
 };
 
+// Professional approves/rejects/updates a request via status.
+export const useUpdateAppointment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiPatch<Appointment>(`/professional/appointments/${id}`, { status }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['professional', 'appointments'] }),
+  });
+};
+
+// Patient requests an appointment with a connected professional.
+export const useRequestAppointment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      professional_id: string; title: string; scheduled_at: string;
+      duration_minutes: number; session_type: string; description?: string;
+    }) => apiPost<Appointment>('/patient/appointments', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['patient', 'appointments'] }),
+  });
+};
+
+// Patient cancels their own appointment.
+export const useCancelPatientAppointment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiPost(`/patient/appointments/${id}/cancel`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['patient', 'appointments'] }),
+  });
+};
+
+// Patient proposes a new time.
+export const useReschedulePatientAppointment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, scheduled_at }: { id: string; scheduled_at: string }) =>
+      apiPatch<Appointment>(`/patient/appointments/${id}/reschedule`, { scheduled_at }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['patient', 'appointments'] }),
+  });
+};
+
 // ─── Sessions ─────────────────────────────────────────────────────────────────
 export const useProfessionalSessions = (params?: PaginationParams) =>
   useQuery<PaginatedResponse<TherapySession>>({
@@ -230,6 +271,27 @@ export const usePatientCarePlans = () =>
     queryKey: ['patient', 'care-plans'],
     queryFn: () => apiGet('/patient/care-plans'),
   });
+
+// ── Patient Records (professional clinical documentation) ──
+export const usePatientRecords = () =>
+  useQuery<PatientRecord[]>({ queryKey: ['emr', 'patient-records'], queryFn: () => apiGet('/emr/patient-records') });
+
+export const useCreatePatientRecord = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<PatientRecord>) => apiPost<PatientRecord>('/emr/patient-records', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['emr', 'patient-records'] }),
+  });
+};
+
+export const useUpdatePatientRecord = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<PatientRecord> }) =>
+      apiPatch<PatientRecord>(`/emr/patient-records/${id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['emr', 'patient-records'] }),
+  });
+};
 
 // Patient ticks care-plan tasks complete (sends the full updated task list).
 export const useUpdateCarePlanTasks = () => {
@@ -321,6 +383,25 @@ export const useStartConversation = () => {
   });
 };
 
+// Patient/professional opens (or returns) their conversation with an admin.
+export const useStartAdminConversation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiPost<Conversation>('/messages/admin'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.conversations }),
+  });
+};
+
+// Admin connects a patient (by id OR email) to a professional via dxpin/connection.
+export const useAssignProfessional = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { professional_id: string; role: string; patient_id?: string; patient_email?: string }) =>
+      apiPost('/admin/assign', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin'] }),
+  });
+};
+
 // ─── Notifications ────────────────────────────────────────────────────────────
 export const useNotifications = (params?: PaginationParams) =>
   useQuery<PaginatedResponse<Notification>>({
@@ -378,10 +459,11 @@ export const useAdminStats = () =>
 export const useAdminUsers = (params?: PaginationParams) =>
   useQuery({ queryKey: qk.adminUsers(params), queryFn: () => apiGetPaginated<User>('/admin/users', params as Record<string, unknown>) });
 
-export const useAdminProfessionals = (status?: string) =>
+export const useAdminProfessionals = (status?: string, enabled = true) =>
   useQuery({
     queryKey: qk.adminProfessionals(status),
     queryFn: () => apiGetPaginated('/admin/professionals', status ? { status } : undefined),
+    enabled,
   });
 
 export const useApproveProfessional = () => {
@@ -393,8 +475,8 @@ export const useApproveProfessional = () => {
   });
 };
 
-export const useAdminPatients = (params?: PaginationParams) =>
-  useQuery({ queryKey: qk.adminPatients(params), queryFn: () => apiGetPaginated('/admin/patients', params as Record<string, unknown>) });
+export const useAdminPatients = (params?: PaginationParams, enabled = true) =>
+  useQuery({ queryKey: qk.adminPatients(params), queryFn: () => apiGetPaginated('/admin/patients', params as Record<string, unknown>), enabled });
 
 export const useAdminAnalytics = (period = 'month') =>
   useQuery({ queryKey: qk.adminAnalytics(period), queryFn: () => apiGet<Record<string, unknown>>(`/admin/analytics?period=${period}`) });

@@ -100,14 +100,14 @@ func main() {
 
 	// ── Services ──────────────────────────────────────────────────────────────
 	svcAuth := services.NewAuthService(cfg, jwtMgr, userRepo, profRepo, tokenRepo, mailer)
-	svcProf := services.NewProfessionalService(cfg, userRepo, profRepo, apptRepo, sessionRepo, connRepo, mailer)
-	svcPatient := services.NewPatientService(cfg, userRepo, profRepo, apptRepo, sessionRepo, connRepo, emrRepo, mailer)
+	svcProf := services.NewProfessionalService(cfg, userRepo, profRepo, apptRepo, sessionRepo, connRepo, notifRepo, mailer)
+	svcPatient := services.NewPatientService(cfg, userRepo, profRepo, apptRepo, sessionRepo, connRepo, emrRepo, notifRepo, mailer)
 	svcEMR := services.NewEMRService(cfg, emrRepo, userRepo, notifRepo)
 	svcTheraPay := services.NewTherapayService(cfg, billingRepo, notifRepo)
 	svcAdmin := services.NewAdminService(cfg, adminRepo, userRepo, profRepo, connRepo, notifRepo, mailer)
 	svcNotif := services.NewNotificationService(cfg, notifRepo)
 	svcAI := services.NewAIService(cfg)
-	svcMsg := services.NewMessagingService(cfg, msgRepo, userRepo)
+	svcMsg := services.NewMessagingService(cfg, msgRepo, userRepo, notifRepo)
 
 	// ── Handlers ──────────────────────────────────────────────────────────────
 	handlers := &server.Handlers{

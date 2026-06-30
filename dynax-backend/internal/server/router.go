@@ -125,6 +125,7 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 		msg := protected.Group("/messages")
 		{
 			msg.GET("/conversations", h.Messaging.ListConversations)
+			msg.POST("/admin", h.Messaging.StartAdminConversation)
 			msg.POST("/conversations/:conversation_id", h.Messaging.GetOrCreateConversation)
 			msg.GET("/conversations/:conversation_id/messages", h.Messaging.GetMessages)
 			msg.POST("/conversations/:conversation_id/messages", h.Messaging.SendMessage)
@@ -158,6 +159,9 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			patient.DELETE("/connect/:professional_id", h.Patient.DisconnectFromProfessional)
 			patient.GET("/professionals", h.Patient.GetMyProfessionals)
 			patient.GET("/appointments", h.Patient.GetAppointments)
+			patient.POST("/appointments", h.Patient.RequestAppointment)
+			patient.POST("/appointments/:appointment_id/cancel", h.Patient.CancelAppointment)
+			patient.PATCH("/appointments/:appointment_id/reschedule", h.Patient.RescheduleAppointment)
 			patient.GET("/sessions", h.Patient.GetSessions)
 			patient.GET("/care-plans", h.Patient.GetCarePlans)
 			patient.PATCH("/care-plans/:plan_id/tasks", h.Patient.UpdateCarePlanTasks)
@@ -200,6 +204,11 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			emr.PATCH("/notes/:note_id", h.EMR.UpdateNote)
 			emr.DELETE("/notes/:note_id", h.EMR.DeleteNote)
 
+			emr.POST("/patient-records", h.EMR.CreatePatientRecord)
+			emr.GET("/patient-records", h.EMR.ListPatientRecords)
+			emr.GET("/patient-records/:record_id", h.EMR.GetPatientRecord)
+			emr.PATCH("/patient-records/:record_id", h.EMR.UpdatePatientRecord)
+
 			// Care Plans
 			emr.POST("/care-plans", h.EMR.CreateCarePlan)
 			emr.GET("/care-plans", h.EMR.ListCarePlans)
@@ -218,11 +227,11 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 		therapay := protected.Group("/therapay")
 		{
 			// Plans — professionals create, patients and professionals read
-			therapay.POST("/plans", middleware.RequireAdminOrProfessional(), h.TheraPay.CreatePlan)
+			therapay.POST("/plans", middleware.RequireRole(models.RolePhysiotherapist, models.RoleAdmin), h.TheraPay.CreatePlan)
 			therapay.GET("/plans", h.TheraPay.ListPlans)
 			therapay.GET("/plans/:plan_id", h.TheraPay.GetPlan)
-			therapay.POST("/plans/:plan_id/payments", middleware.RequireAdminOrProfessional(), h.TheraPay.RecordPayment)
-			therapay.POST("/plans/:plan_id/cancel", middleware.RequireAdminOrProfessional(), h.TheraPay.CancelPlan)
+			therapay.POST("/plans/:plan_id/payments", middleware.RequireRole(models.RolePhysiotherapist, models.RoleAdmin), h.TheraPay.RecordPayment)
+			therapay.POST("/plans/:plan_id/cancel", middleware.RequireRole(models.RolePhysiotherapist, models.RoleAdmin), h.TheraPay.CancelPlan)
 
 			// Balance — patients view own; professionals/admin view any
 			therapay.GET("/balance/:patient_id", h.TheraPay.GetPatientBalance)

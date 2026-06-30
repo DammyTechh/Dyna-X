@@ -217,12 +217,70 @@ type CreateAppointmentRequest struct {
 	MeetingURL      string `json:"meeting_url,omitempty"`
 }
 
+// RequestAppointmentRequest is sent by a PATIENT to request an appointment with
+// one of their connected professionals. It lands as status "requested".
+type RequestAppointmentRequest struct {
+	ProfessionalID  string `json:"professional_id" validate:"required,uuid"`
+	Title           string `json:"title" validate:"required,min=3,max=200"`
+	Description     string `json:"description,omitempty"`
+	ScheduledAt     string `json:"scheduled_at" validate:"required"`
+	DurationMinutes int    `json:"duration_minutes" validate:"required,min=15,max=480"`
+	SessionType     string `json:"session_type" validate:"required,oneof=virtual in_person"`
+}
+
+// ─── Patient Records (simple clinical documentation) ──────────────────────────
+
+type PatientRecord struct {
+	ID                 string          `json:"id" db:"id"`
+	ProfessionalID     string          `json:"professional_id" db:"professional_id"`
+	FullName           string          `json:"full_name" db:"full_name"`
+	DateOfBirth        *string         `json:"date_of_birth,omitempty" db:"date_of_birth"`
+	Gender             *string         `json:"gender,omitempty" db:"gender"`
+	Phone              *string         `json:"phone,omitempty" db:"phone"`
+	Email              *string         `json:"email,omitempty" db:"email"`
+	Address            *string         `json:"address,omitempty" db:"address"`
+	ClinicalHistory    *string         `json:"clinical_history,omitempty" db:"clinical_history"`
+	CaseNotes          *string         `json:"case_notes,omitempty" db:"case_notes"`
+	AssessmentFindings *string         `json:"assessment_findings,omitempty" db:"assessment_findings"`
+	ProgressNotes      *string         `json:"progress_notes,omitempty" db:"progress_notes"`
+	OutcomeMeasures    *string         `json:"outcome_measures,omitempty" db:"outcome_measures"`
+	Measurements       json.RawMessage `json:"measurements" db:"measurements"`
+	Attachments        json.RawMessage `json:"attachments" db:"attachments"`
+	CreatedAt          time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at" db:"updated_at"`
+}
+
+type CreatePatientRecordRequest struct {
+	FullName           string          `json:"full_name" validate:"required,min=2,max=200"`
+	DateOfBirth        string          `json:"date_of_birth,omitempty"`
+	Gender             string          `json:"gender,omitempty"`
+	Phone              string          `json:"phone,omitempty"`
+	Email              string          `json:"email,omitempty"`
+	Address            string          `json:"address,omitempty"`
+	ClinicalHistory    string          `json:"clinical_history,omitempty"`
+	CaseNotes          string          `json:"case_notes,omitempty"`
+	AssessmentFindings string          `json:"assessment_findings,omitempty"`
+	ProgressNotes      string          `json:"progress_notes,omitempty"`
+	OutcomeMeasures    string          `json:"outcome_measures,omitempty"`
+	Measurements       json.RawMessage `json:"measurements,omitempty"`
+	Attachments        json.RawMessage `json:"attachments,omitempty"`
+}
+
+// UpdatePatientRecordRequest mirrors create; same payload replaces the record.
+type UpdatePatientRecordRequest = CreatePatientRecordRequest
+
+// RescheduleAppointmentRequest is sent by a patient to propose a new time
+// (re-enters the "requested" state for the professional to re-approve).
+type RescheduleAppointmentRequest struct {
+	ScheduledAt string `json:"scheduled_at" validate:"required"`
+}
+
 type UpdateAppointmentRequest struct {
 	Title           *string `json:"title,omitempty"`
 	Description     *string `json:"description,omitempty"`
 	ScheduledAt     *string `json:"scheduled_at,omitempty"`
 	DurationMinutes *int    `json:"duration_minutes,omitempty"`
-	Status          *string `json:"status,omitempty" validate:"omitempty,oneof=scheduled completed cancelled no_show"`
+	Status          *string `json:"status,omitempty" validate:"omitempty,oneof=scheduled completed cancelled no_show requested rejected"`
 	MeetingURL      *string `json:"meeting_url,omitempty"`
 	Notes           *string `json:"notes,omitempty"`
 }
@@ -470,7 +528,8 @@ type AdminStats struct {
 }
 
 type AssignProfessionalRequest struct {
-	PatientID      string `json:"patient_id" validate:"required,uuid"`
+	PatientID      string `json:"patient_id,omitempty" validate:"omitempty,uuid"`
+	PatientEmail   string `json:"patient_email,omitempty" validate:"omitempty,email"`
 	ProfessionalID string `json:"professional_id" validate:"required,uuid"`
 	Role           string `json:"role" validate:"required"`
 }

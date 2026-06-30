@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useAdminPatients } from '@/hooks/useApi';
-import { Search, Users, Loader2, ChevronRight } from 'lucide-react';
+import { useAdminPatients, useAdminProfessionals, useStartConversation, useAssignProfessional } from '@/hooks/useApi';
+import { Search, Users, Loader2, MessageCircle, Link as LinkIcon, X, Check } from 'lucide-react';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 
 export default function AdminPatientsPage() {
@@ -13,6 +15,28 @@ export default function AdminPatientsPage() {
 
   const patients = (data?.data || []) as Record<string, unknown>[];
   const meta = data?.meta;
+  const { data: profData } = useAdminProfessionals('approved');
+  const professionals = ((profData?.data || []) as Record<string, unknown>[]);
+  const { mutateAsync: startConv } = useStartConversation();
+  const { mutateAsync: assign, isPending: assigning } = useAssignProfessional();
+  const router = useRouter();
+  const [connectFor, setConnectFor] = useState<string | null>(null);
+  const [selProf, setSelProf] = useState('');
+
+  const messagePatient = async (uid: string) => {
+    try { const c = await startConv(uid); router.push(`/dashboard/messages?c=${c.id}`); }
+    catch (e) { toast.error((e as Error).message || 'Could not open chat'); }
+  };
+
+  const doConnect = async (patientUid: string) => {
+    const prof = professionals.find((p) => ((p.user_id || p.id) as string) === selProf);
+    if (!prof) { toast.error('Pick a professional'); return; }
+    try {
+      await assign({ patient_id: patientUid, professional_id: selProf, role: (prof.professional_type as string) || 'physiotherapist' });
+      toast.success('Patient connected to professional');
+      setConnectFor(null); setSelProf('');
+    } catch (e) { toast.error((e as Error).message || 'Could not connect'); }
+  };
 
   return (
     <DashboardLayout>
@@ -51,10 +75,21 @@ export default function AdminPatientsPage() {
                         {p.condition as string}
                       </span>
                     )}
-                    <div className="text-right text-xs text-slate-400">
+                    <div className="hidden md:block text-right text-xs text-slate-400">
                       {format(new Date(p.created_at as string), 'MMM d, yyyy')}
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button onClick={() => messagePatient((p.user_id || p.id) as string)}
+                        title="Message patient"
+                        className="p-2 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                        <MessageCircle className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => { setConnectFor(connectFor === (p.id as string) ? null : (p.id as string)); setSelProf(''); }}
+                        title="Connect to professional"
+                        className="p-2 rounded-lg text-slate-500 hover:text-green-600 hover:bg-green-50 transition-colors">
+                        <LinkIcon className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

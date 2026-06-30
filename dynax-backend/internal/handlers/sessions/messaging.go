@@ -15,6 +15,7 @@ type Handler struct {
 type Service interface {
 	GetConversations(userID string) ([]models.Conversation, error)
 	GetOrCreateConversation(userID, targetID string) (*models.Conversation, error)
+	StartAdminConversation(userID string) (*models.Conversation, error)
 	GetMessages(userID, conversationID string, q *models.PaginationQuery) ([]models.Message, int64, error)
 	SendMessage(userID, senderType, conversationID string, req *models.SendMessageRequest) (*models.Message, error)
 	MarkConversationRead(userID, conversationID string) error
@@ -148,4 +149,15 @@ func (h *Handler) MarkConversationRead(c *gin.Context) {
 		return
 	}
 	response.OK(c, "Conversation marked as read", nil)
+}
+
+// StartAdminConversation opens (or returns) the caller's conversation with an admin.
+func (h *Handler) StartAdminConversation(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	conv, err := h.service.StartAdminConversation(userID)
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Conversation ready", conv)
 }

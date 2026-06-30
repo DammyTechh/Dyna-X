@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -108,6 +109,35 @@ func (r *AppointmentRepository) UpdateStatus(ctx context.Context, id, status str
 		q = `UPDATE public.appointments SET status = $2, cancelled_at = NOW(), updated_at = NOW() WHERE id = $1`
 	}
 	return r.db.ExecOne(ctx, q, id, status)
+}
+
+// CreateRequest inserts a patient-requested appointment in the "requested" state.
+func (r *AppointmentRepository) CreateRequest(ctx context.Context, a *models.Appointment) (*models.Appointment, error) {
+	const q = `
+		INSERT INTO public.appointments
+		  (patient_id, professional_id, professional_type, title, description,
+		   scheduled_at, duration_minutes, session_type, status)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'requested')
+		RETURNING id, status, created_at, updated_at`
+	err := r.db.QueryRow(ctx, q,
+		a.PatientID, a.ProfessionalID, "physiotherapist", a.Title, a.Description,
+		a.ScheduledAt, a.DurationMinutes, a.SessionType,
+	).Scan(&a.ID, &a.Status, &a.CreatedAt, &a.UpdatedAt)
+	return a, err
+}
+
+// CancelByPatient cancels an appointment, scoped so a patient can only cancel their own.
+func (r *AppointmentRepository) CancelByPatient(ctx context.Context, id, patientID string) error {
+	return r.db.ExecOne(ctx,
+		`UPDATE public.appointments SET status='cancelled', cancelled_at=NOW(), updated_at=NOW()
+		 WHERE id=$1 AND patient_id=$2`, id, patientID)
+}
+
+// RescheduleByPatient proposes a new time and re-enters the "requested" state.
+func (r *AppointmentRepository) RescheduleByPatient(ctx context.Context, id, patientID string, when time.Time) error {
+	return r.db.ExecOne(ctx,
+		`UPDATE public.appointments SET scheduled_at=$3, status='requested', updated_at=NOW()
+		 WHERE id=$1 AND patient_id=$2`, id, patientID, when)
 }
 
 // ─── scan helper ─────────────────────────────────────────────────────────────

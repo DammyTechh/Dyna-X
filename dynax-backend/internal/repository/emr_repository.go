@@ -339,3 +339,101 @@ func nilIfEmptyStr(s string) *string {
 	}
 	return &s
 }
+
+// ─── Patient Records ─────────────────────────────────────────────────────────
+
+const patientRecordCols = `id, professional_id, full_name, date_of_birth::text, gender, phone, email, address,
+	clinical_history, case_notes, assessment_findings, progress_notes, outcome_measures,
+	measurements, attachments, created_at, updated_at`
+
+func (r *EMRRepository) scanPatientRecords(ctx context.Context, query string, args ...interface{}) ([]models.PatientRecord, error) {
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []models.PatientRecord{}
+	for rows.Next() {
+		var p models.PatientRecord
+		if err := rows.Scan(&p.ID, &p.ProfessionalID, &p.FullName, &p.DateOfBirth, &p.Gender, &p.Phone, &p.Email, &p.Address,
+			&p.ClinicalHistory, &p.CaseNotes, &p.AssessmentFindings, &p.ProgressNotes, &p.OutcomeMeasures,
+			&p.Measurements, &p.Attachments, &p.CreatedAt, &p.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+func (r *EMRRepository) CreatePatientRecord(ctx context.Context, professionalID string, req *models.CreatePatientRecordRequest) (*models.PatientRecord, error) {
+	measurements := req.Measurements
+	if len(measurements) == 0 {
+		measurements = json.RawMessage("{}")
+	}
+	attachments := req.Attachments
+	if len(attachments) == 0 {
+		attachments = json.RawMessage("[]")
+	}
+	const q = `
+		INSERT INTO public.patient_records
+		  (professional_id, full_name, date_of_birth, gender, phone, email, address,
+		   clinical_history, case_notes, assessment_findings, progress_notes, outcome_measures,
+		   measurements, attachments)
+		VALUES ($1,$2,$3::date,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb)
+		RETURNING id, created_at, updated_at`
+	rec := &models.PatientRecord{
+		ProfessionalID: professionalID, FullName: req.FullName,
+		DateOfBirth: nilIfEmptyStr(req.DateOfBirth), Gender: nilIfEmptyStr(req.Gender),
+		Phone: nilIfEmptyStr(req.Phone), Email: nilIfEmptyStr(req.Email), Address: nilIfEmptyStr(req.Address),
+		ClinicalHistory: nilIfEmptyStr(req.ClinicalHistory), CaseNotes: nilIfEmptyStr(req.CaseNotes),
+		AssessmentFindings: nilIfEmptyStr(req.AssessmentFindings), ProgressNotes: nilIfEmptyStr(req.ProgressNotes),
+		OutcomeMeasures: nilIfEmptyStr(req.OutcomeMeasures), Measurements: measurements, Attachments: attachments,
+	}
+	err := r.db.QueryRow(ctx, q,
+		rec.ProfessionalID, rec.FullName, rec.DateOfBirth, rec.Gender, rec.Phone, rec.Email, rec.Address,
+		rec.ClinicalHistory, rec.CaseNotes, rec.AssessmentFindings, rec.ProgressNotes, rec.OutcomeMeasures,
+		string(measurements), string(attachments),
+	).Scan(&rec.ID, &rec.CreatedAt, &rec.UpdatedAt)
+	return rec, err
+}
+
+func (r *EMRRepository) ListPatientRecords(ctx context.Context, professionalID string) ([]models.PatientRecord, error) {
+	return r.scanPatientRecords(ctx,
+		`SELECT `+patientRecordCols+` FROM public.patient_records
+		 WHERE professional_id=$1 ORDER BY updated_at DESC`, professionalID)
+}
+
+func (r *EMRRepository) GetPatientRecord(ctx context.Context, professionalID, recordID string) (*models.PatientRecord, error) {
+	recs, err := r.scanPatientRecords(ctx,
+		`SELECT `+patientRecordCols+` FROM public.patient_records WHERE id=$1 AND professional_id=$2`,
+		recordID, professionalID)
+	if err != nil || len(recs) == 0 {
+		return nil, err
+	}
+	return &recs[0], nil
+}
+
+func (r *EMRRepository) UpdatePatientRecord(ctx context.Context, professionalID, recordID string, req *models.CreatePatientRecordRequest) (*models.PatientRecord, error) {
+	measurements := req.Measurements
+	if len(measurements) == 0 {
+		measurements = json.RawMessage("{}")
+	}
+	attachments := req.Attachments
+	if len(attachments) == 0 {
+		attachments = json.RawMessage("[]")
+	}
+	if err := r.db.ExecOne(ctx,
+		`UPDATE public.patient_records SET
+		   full_name=$3, date_of_birth=$4::date, gender=$5, phone=$6, email=$7, address=$8,
+		   clinical_history=$9, case_notes=$10, assessment_findings=$11, progress_notes=$12,
+		   outcome_measures=$13, measurements=$14::jsonb, attachments=$15::jsonb, updated_at=NOW()
+		 WHERE id=$1 AND professional_id=$2`,
+		recordID, professionalID, req.FullName, nilIfEmptyStr(req.DateOfBirth), nilIfEmptyStr(req.Gender),
+		nilIfEmptyStr(req.Phone), nilIfEmptyStr(req.Email), nilIfEmptyStr(req.Address),
+		nilIfEmptyStr(req.ClinicalHistory), nilIfEmptyStr(req.CaseNotes), nilIfEmptyStr(req.AssessmentFindings),
+		nilIfEmptyStr(req.ProgressNotes), nilIfEmptyStr(req.OutcomeMeasures),
+		string(measurements), string(attachments)); err != nil {
+		return nil, err
+	}
+	return r.GetPatientRecord(ctx, professionalID, recordID)
+}

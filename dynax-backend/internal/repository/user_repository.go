@@ -41,6 +41,25 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*models.User,
 }
 
 // FindByEmail returns a user by email address.
+// FindFirstAdmin returns the earliest active admin (used so patients can DM "the admin").
+func (r *UserRepository) FindFirstAdmin(ctx context.Context) (*models.User, error) {
+	const q = `
+		SELECT id, email, role, is_active, created_at, updated_at
+		FROM public.dynax_users
+		WHERE role = 'admin' AND is_active = TRUE
+		ORDER BY created_at ASC
+		LIMIT 1`
+
+	u := &models.User{}
+	err := r.db.QueryRow(ctx, q).Scan(
+		&u.ID, &u.Email, &u.Role, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return u, err
+}
+
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	const q = `
 		SELECT id, email, role, is_active, created_at, updated_at

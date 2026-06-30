@@ -115,7 +115,7 @@ export interface Appointment {
   scheduled_at: string;
   duration_minutes: number;
   session_type: 'virtual' | 'in_person';
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | 'requested' | 'rejected';
   meeting_url?: string;
   notes?: string;
   completed_at?: string;
@@ -156,6 +156,28 @@ export interface ClinicalNote {
   content: string;
   diagnosis_codes?: string[];
   is_confidential: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PatientRecordAttachment { name: string; url: string; }
+
+export interface PatientRecord {
+  id: string;
+  professional_id: string;
+  full_name: string;
+  date_of_birth?: string;
+  gender?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  clinical_history?: string;
+  case_notes?: string;
+  assessment_findings?: string;
+  progress_notes?: string;
+  outcome_measures?: string;
+  measurements?: Record<string, string>;
+  attachments?: PatientRecordAttachment[];
   created_at: string;
   updated_at: string;
 }
