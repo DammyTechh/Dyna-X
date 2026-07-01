@@ -138,18 +138,28 @@ func (r *BillingRepository) CreateApplication(ctx context.Context, patientID str
 	return map[string]interface{}{"id": id, "status": "pending"}, nil
 }
 
-func (r *BillingRepository) ListApplications(ctx context.Context, userID string, q *models.PaginationQuery) ([]interface{}, int64, error) {
+func (r *BillingRepository) ListApplications(ctx context.Context, userID string, isAdmin bool, q *models.PaginationQuery) ([]interface{}, int64, error) {
+	where := "WHERE patient_id=$1 OR professional_id=$1"
+	countArgs := []interface{}{userID}
+	listArgs := []interface{}{userID, q.PageSize, q.Offset()}
+	if isAdmin {
+		where = "WHERE TRUE"
+		countArgs = []interface{}{}
+		listArgs = []interface{}{q.PageSize, q.Offset()}
+	}
 	var total int64
-	if err := r.db.QueryRow(ctx,
-		`SELECT COUNT(*) FROM public.therapay_applications WHERE patient_id=$1 OR professional_id=$1`,
-		userID).Scan(&total); err != nil {
+	countQ := `SELECT COUNT(*) FROM public.therapay_applications ` + where
+	if err := r.db.QueryRow(ctx, countQ, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := r.db.Query(ctx,
-		`SELECT id, patient_id, plan_type, requested_amount, status, created_at::text
-		 FROM public.therapay_applications WHERE patient_id=$1 OR professional_id=$1
-		 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
-		userID, q.PageSize, q.Offset())
+	listQ := `SELECT id, patient_id, plan_type, requested_amount, status, review_notes, created_at::text
+		 FROM public.therapay_applications ` + where + ` ORDER BY created_at DESC `
+	if isAdmin {
+		listQ += `LIMIT $1 OFFSET $2`
+	} else {
+		listQ += `LIMIT $2 OFFSET $3`
+	}
+	rows, err := r.db.Query(ctx, listQ, listArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -158,13 +168,26 @@ func (r *BillingRepository) ListApplications(ctx context.Context, userID string,
 	for rows.Next() {
 		var id, patientID, planType, status, createdAt string
 		var amount *float64
-		if err := rows.Scan(&id, &patientID, &planType, &amount, &status, &createdAt); err != nil {
+		var reviewNotes *string
+		if err := rows.Scan(&id, &patientID, &planType, &amount, &status, &reviewNotes, &createdAt); err != nil {
 			return nil, 0, err
 		}
 		out = append(out, map[string]interface{}{
 			"id": id, "patient_id": patientID, "plan_type": planType,
-			"requested_amount": amount, "status": status, "created_at": createdAt,
+			"requested_amount": amount, "status": status, "review_notes": reviewNotes, "created_at": createdAt,
 		})
 	}
 	return out, total, rows.Err()
+}
+
+// ReviewApplication sets an application to approved/rejected and returns the
+// patient and (optional) professional ids so callers can notify them.
+func (r *BillingRepository) ReviewApplication(ctx context.Context, appID, reviewerID, status, notes string) (patientID string, professionalID *string, err error) {
+	err = r.db.QueryRow(ctx,
+		`UPDATE public.therapay_applications
+		   SET status=$2, reviewed_by=$3, reviewed_at=NOW(), review_notes=$4, updated_at=NOW()
+		 WHERE id=$1
+		 RETURNING patient_id, professional_id`,
+		appID, status, reviewerID, nilIfEmptyStr(notes)).Scan(&patientID, &professionalID)
+	return patientID, professionalID, err
 }

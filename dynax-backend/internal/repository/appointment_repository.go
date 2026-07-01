@@ -140,6 +140,13 @@ func (r *AppointmentRepository) RescheduleByPatient(ctx context.Context, id, pat
 		 WHERE id=$1 AND patient_id=$2`, id, patientID, when)
 }
 
+// Reschedule lets a professional set a new time and confirm the appointment.
+func (r *AppointmentRepository) Reschedule(ctx context.Context, id string, when time.Time) error {
+	return r.db.ExecOne(ctx,
+		`UPDATE public.appointments SET scheduled_at=$2, status='scheduled', updated_at=NOW()
+		 WHERE id=$1`, id, when)
+}
+
 // ─── scan helper ─────────────────────────────────────────────────────────────
 
 func (r *AppointmentRepository) scanAppointments(ctx context.Context, query string, args ...interface{}) ([]models.Appointment, int64, error) {

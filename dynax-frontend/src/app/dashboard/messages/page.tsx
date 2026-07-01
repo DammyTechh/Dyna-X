@@ -110,6 +110,12 @@ function MessagesInner() {
     try { await sendMessage(text); } catch { setInputText(text); }
   };
 
+  const startCall = async (mode: 'audio' | 'video') => {
+    setCallMode(mode);
+    // Send a message so the other participant gets an in-app notification of the call.
+    try { await sendMessage(mode === 'audio' ? '📞 Started an audio call — join from Messages' : '📹 Started a video call — join from Messages'); } catch { /* call still opens */ }
+  };
+
   const handleStartWith = async (contact: Contact) => {
     try {
       const conv = await startConversation(contact.userId);
@@ -285,14 +291,14 @@ function MessagesInner() {
                 </div>
                 <div className="ml-auto flex items-center gap-2">
                   <button
-                    onClick={() => setCallMode('audio')}
+                    onClick={() => startCall('audio')}
                     title="Start audio call"
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold transition-colors"
                   >
                     <Phone className="w-4 h-4" /> Audio
                   </button>
                   <button
-                    onClick={() => setCallMode('video')}
+                    onClick={() => startCall('video')}
                     title="Start video call"
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-xs font-semibold transition-colors"
                   >

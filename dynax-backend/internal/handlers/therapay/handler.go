@@ -20,7 +20,8 @@ type Service interface {
 	CancelPlan(professionalID, planID string) error
 	GetPatientBalance(patientID string) (map[string]interface{}, error)
 	ApplyApplication(patientID string, data map[string]interface{}) (interface{}, error)
-	GetApplications(userID string, q *models.PaginationQuery) ([]interface{}, int64, error)
+	GetApplications(userID, role string, q *models.PaginationQuery) ([]interface{}, int64, error)
+	ReviewApplication(reviewerID, appID, status, notes string) error
 }
 
 func NewHandler(svc Service) *Handler {
@@ -212,7 +213,7 @@ func (h *Handler) ListApplications(c *gin.Context) {
 	var q models.PaginationQuery
 	_ = c.ShouldBindQuery(&q)
 	userID := middleware.GetUserID(c)
-	apps, total, err := h.service.GetApplications(userID, &q)
+	apps, total, err := h.service.GetApplications(userID, middleware.GetRole(c), &q)
 	if err != nil {
 		response.InternalError(c, err)
 		return
@@ -221,4 +222,26 @@ func (h *Handler) ListApplications(c *gin.Context) {
 	response.Paginated(c, apps, &response.Meta{
 		Page: q.Page, PageSize: q.PageSize, Total: total, TotalPages: totalPages,
 	})
+}
+
+// ReviewApplication lets an admin/professional approve or reject a TheraPay application.
+func (h *Handler) ReviewApplication(c *gin.Context) {
+	appID := c.Param("application_id")
+	var body struct {
+		Status string `json:"status"`
+		Notes  string `json:"notes"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Request body is malformed")
+		return
+	}
+	if body.Status != "approved" && body.Status != "rejected" {
+		response.BadRequest(c, "INVALID_STATUS", "Status must be approved or rejected")
+		return
+	}
+	if err := h.service.ReviewApplication(middleware.GetUserID(c), appID, body.Status, body.Notes); err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Application "+body.Status, nil)
 }

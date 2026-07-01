@@ -357,3 +357,17 @@ export interface PaginationParams {
   sort_by?: string;
   sort_dir?: 'asc' | 'desc';
 }
+
+export interface FollowUp {
+  id: string;
+  patient_id: string;
+  professional_id: string;
+  cadence: string;
+  due_date: string;
+  status: 'scheduled' | 'completed' | 'flagged';
+  note?: string;
+  patient_response?: string;
+  needs_reevaluation: boolean;
+  created_at: string;
+  updated_at: string;
+}

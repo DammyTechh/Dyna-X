@@ -33,6 +33,8 @@ type Service interface {
 	GetSharedDevice(token string) (*models.DeviceMeasurement, string, error)
 	ListDeviceComments(deviceID string) ([]repository.DeviceComment, error)
 	AddDeviceComment(deviceID, authorID, authorRole, content string) (*repository.DeviceComment, error)
+	CreateFollowUp(professionalID string, req *models.CreateFollowUpRequest) (*models.FollowUp, error)
+	ListFollowUpsForProfessional(professionalID string) ([]models.FollowUp, error)
 }
 
 func NewHandler(svc Service) *Handler {
@@ -457,4 +459,29 @@ func (h *Handler) UpdatePatientRecord(c *gin.Context) {
 		return
 	}
 	response.OK(c, "Patient record updated", rec)
+}
+
+// CreateFollowUp schedules a follow-up for a patient (professional).
+func (h *Handler) CreateFollowUp(c *gin.Context) {
+	var req models.CreateFollowUpRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Request body is malformed")
+		return
+	}
+	f, err := h.service.CreateFollowUp(middleware.GetUserID(c), &req)
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Follow-up scheduled", f)
+}
+
+// ListFollowUps returns the professional's scheduled follow-ups.
+func (h *Handler) ListFollowUps(c *gin.Context) {
+	items, err := h.service.ListFollowUpsForProfessional(middleware.GetUserID(c))
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Follow-ups retrieved", items)
 }

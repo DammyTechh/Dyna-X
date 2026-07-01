@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useTherapayPlans } from '@/hooks/useApi';
-import { CreditCard, Loader2, Calendar, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { useTherapayPlans, useApplyTherapay } from '@/hooks/useApi';
+import { CreditCard, Loader2, Calendar, CheckCircle, Clock, AlertCircle, Plus, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { TheraPay } from '@/types';
@@ -25,7 +27,30 @@ const STATUS_CONFIG: Record<string, { color: string; icon: typeof CheckCircle; l
 
 export default function PatientPaymentsPage() {
   const { data, isLoading } = useTherapayPlans({ page: 1, page_size: 20 });
+  const apply = useApplyTherapay();
   const plans = data?.data || [];
+  const [showApply, setShowApply] = useState(false);
+  const [appForm, setAppForm] = useState({ plan_type: 'installment', requested_amount: '', reason: '' });
+
+  const submitApply = async () => {
+    if (!appForm.requested_amount) { toast.error('Enter the amount you need'); return; }
+    try {
+      await apply.mutateAsync({
+        plan_type: appForm.plan_type,
+        requested_amount: parseFloat(appForm.requested_amount) || undefined,
+        reason: appForm.reason || undefined,
+      });
+      toast.success('Application submitted — an admin will review it');
+      setShowApply(false);
+      setAppForm({ plan_type: 'installment', requested_amount: '', reason: '' });
+    } catch (e) { toast.error((e as Error).message || 'Could not submit application'); }
+  };
+
+  const payStatus = (p: TheraPay) => {
+    if (p.amount_paid >= p.total_amount && p.total_amount > 0) return { label: 'Paid', cls: 'bg-green-100 text-green-700' };
+    if (p.amount_paid > 0) return { label: 'Partially paid', cls: 'bg-amber-100 text-amber-700' };
+    return { label: 'Unpaid', cls: 'bg-rose-100 text-rose-700' };
+  };
 
   const totalOwed = plans.filter((p) => p.status === 'active' || p.status === 'overdue')
     .reduce((s, p) => s + (p.total_amount - p.amount_paid), 0);
@@ -35,9 +60,47 @@ export default function PatientPaymentsPage() {
     <DashboardLayout>
       <div className="p-6 max-w-4xl mx-auto space-y-6 animate-in">
         <div>
-          <h1 className="font-display text-2xl font-bold text-slate-900">My Payments</h1>
-          <p className="text-slate-500 text-sm mt-1">Your TheraPay therapy payment plans</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="font-display text-2xl font-bold text-slate-900">My Payments</h1>
+              <p className="text-slate-500 text-sm mt-1">Your TheraPay therapy payment plans</p>
+            </div>
+            <button onClick={() => setShowApply((v) => !v)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 flex-shrink-0">
+              {showApply ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}{showApply ? 'Close' : 'Apply for financing'}
+            </button>
+          </div>
         </div>
+
+        {showApply && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
+            <h2 className="font-semibold text-slate-900">Apply for TheraPay financing</h2>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Plan type</label>
+                <select value={appForm.plan_type} onChange={(e) => setAppForm({ ...appForm, plan_type: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                  <option value="installment">Installment plan</option>
+                  <option value="bundle">Session bundle</option>
+                  <option value="subscription">Subscription</option>
+                  <option value="session">Per session</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Amount needed (₦)</label>
+                <input type="number" value={appForm.requested_amount} onChange={(e) => setAppForm({ ...appForm, requested_amount: e.target.value })}
+                  placeholder="e.g. 50000" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              </div>
+            </div>
+            <textarea value={appForm.reason} onChange={(e) => setAppForm({ ...appForm, reason: e.target.value })} rows={2}
+              placeholder="Briefly, why you need financing (optional)"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none" />
+            <button onClick={submitApply} disabled={apply.isPending}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
+              {apply.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}Submit application
+            </button>
+          </div>
+        )}
 
         {/* Summary cards */}
         {!isLoading && plans.length > 0 && (
@@ -87,6 +150,9 @@ export default function PatientPaymentsPage() {
                           <span className={cn('inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full', statusCfg.color)}>
                             <StatusIcon className="w-3 h-3" />
                             {statusCfg.label}
+                          </span>
+                          <span className={cn('inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full', payStatus(plan).cls)}>
+                            {payStatus(plan).label}
                           </span>
                         </div>
                       </div>

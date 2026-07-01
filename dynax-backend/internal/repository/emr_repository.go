@@ -437,3 +437,65 @@ func (r *EMRRepository) UpdatePatientRecord(ctx context.Context, professionalID,
 	}
 	return r.GetPatientRecord(ctx, professionalID, recordID)
 }
+
+// ─── Follow-ups ───────────────────────────────────────────────────────────────
+
+const followUpCols = `id, patient_id, professional_id, cadence, due_date::text, status, note, patient_response, needs_reevaluation, created_at, updated_at`
+
+func (r *EMRRepository) scanFollowUps(ctx context.Context, query string, args ...interface{}) ([]models.FollowUp, error) {
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []models.FollowUp{}
+	for rows.Next() {
+		var f models.FollowUp
+		if err := rows.Scan(&f.ID, &f.PatientID, &f.ProfessionalID, &f.Cadence, &f.DueDate,
+			&f.Status, &f.Note, &f.PatientResponse, &f.NeedsReevaluation, &f.CreatedAt, &f.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
+func (r *EMRRepository) CreateFollowUp(ctx context.Context, professionalID string, req *models.CreateFollowUpRequest) (*models.FollowUp, error) {
+	cadence := req.Cadence
+	if cadence == "" {
+		cadence = "custom"
+	}
+	fs, err := r.scanFollowUps(ctx,
+		`INSERT INTO public.follow_ups (patient_id, professional_id, cadence, due_date, note)
+		 VALUES ($1,$2,$3,$4::date,$5) RETURNING `+followUpCols,
+		req.PatientID, professionalID, cadence, req.DueDate, nilIfEmptyStr(req.Note))
+	if err != nil || len(fs) == 0 {
+		return nil, err
+	}
+	return &fs[0], nil
+}
+
+func (r *EMRRepository) ListFollowUpsForProfessional(ctx context.Context, professionalID string) ([]models.FollowUp, error) {
+	return r.scanFollowUps(ctx, `SELECT `+followUpCols+` FROM public.follow_ups WHERE professional_id=$1 ORDER BY due_date ASC`, professionalID)
+}
+
+func (r *EMRRepository) ListFollowUpsForPatient(ctx context.Context, patientID string) ([]models.FollowUp, error) {
+	return r.scanFollowUps(ctx, `SELECT `+followUpCols+` FROM public.follow_ups WHERE patient_id=$1 ORDER BY due_date ASC`, patientID)
+}
+
+func (r *EMRRepository) RespondFollowUp(ctx context.Context, id, patientID, response string, needsReeval bool) (*models.FollowUp, error) {
+	status := "completed"
+	if needsReeval {
+		status = "flagged"
+	}
+	if err := r.db.ExecOne(ctx,
+		`UPDATE public.follow_ups SET patient_response=$3, needs_reevaluation=$4, status=$5, updated_at=NOW()
+		 WHERE id=$1 AND patient_id=$2`, id, patientID, response, needsReeval, status); err != nil {
+		return nil, err
+	}
+	fs, err := r.scanFollowUps(ctx, `SELECT `+followUpCols+` FROM public.follow_ups WHERE id=$1`, id)
+	if err != nil || len(fs) == 0 {
+		return nil, err
+	}
+	return &fs[0], nil
+}

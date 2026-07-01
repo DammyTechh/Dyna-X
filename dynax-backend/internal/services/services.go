@@ -436,6 +436,17 @@ func (s *ProfessionalService) sendAppointmentEmail(ctx context.Context, professi
 
 func (s *ProfessionalService) UpdateAppointment(userID, appointmentID string, req *models.UpdateAppointmentRequest) (*models.Appointment, error) {
 	ctx := context.Background()
+	if req.ScheduledAt != nil {
+		if when, perr := time.Parse(time.RFC3339, *req.ScheduledAt); perr == nil {
+			if err := s.appts.Reschedule(ctx, appointmentID, when); err != nil {
+				return nil, err
+			}
+			if appt, ferr := s.appts.FindByID(ctx, appointmentID); ferr == nil && appt != nil {
+				_ = s.notif.Create(ctx, appt.PatientID, "appointment_rescheduled", "New time proposed",
+					"Your professional proposed a new appointment time.", map[string]string{"appointment_id": appointmentID})
+			}
+		}
+	}
 	if req.Status != nil {
 		if err := s.appts.UpdateStatus(ctx, appointmentID, *req.Status); err != nil {
 			return nil, err
@@ -445,13 +456,13 @@ func (s *ProfessionalService) UpdateAppointment(userID, appointmentID string, re
 	if err == nil && appt != nil && req.Status != nil {
 		switch *req.Status {
 		case "scheduled":
-			_ = s.notif.Create(ctx, appt.PatientID, "appointment", "Appointment confirmed",
+			_ = s.notif.Create(ctx, appt.PatientID, "appointment_reminder", "Appointment confirmed",
 				"Your appointment request was approved.", map[string]string{"appointment_id": appointmentID})
 		case "rejected":
-			_ = s.notif.Create(ctx, appt.PatientID, "appointment", "Appointment declined",
+			_ = s.notif.Create(ctx, appt.PatientID, "appointment_cancelled", "Appointment declined",
 				"Your appointment request was declined. Try another time.", map[string]string{"appointment_id": appointmentID})
 		case "cancelled":
-			_ = s.notif.Create(ctx, appt.PatientID, "appointment", "Appointment cancelled",
+			_ = s.notif.Create(ctx, appt.PatientID, "appointment_cancelled", "Appointment cancelled",
 				"Your appointment was cancelled.", map[string]string{"appointment_id": appointmentID})
 		}
 	}
@@ -634,7 +645,7 @@ func (s *PatientService) RequestAppointment(userID string, req *models.RequestAp
 	if err != nil {
 		return nil, err
 	}
-	_ = s.notif.Create(ctx, req.ProfessionalID, "appointment", "New appointment request",
+	_ = s.notif.Create(ctx, req.ProfessionalID, "appointment_reminder", "New appointment request",
 		"A patient requested an appointment: "+req.Title, map[string]string{"appointment_id": created.ID})
 	return created, nil
 }
@@ -647,7 +658,7 @@ func (s *PatientService) CancelAppointment(userID, appointmentID string) error {
 		return err
 	}
 	if appt != nil {
-		_ = s.notif.Create(ctx, appt.ProfessionalID, "appointment", "Appointment cancelled",
+		_ = s.notif.Create(ctx, appt.ProfessionalID, "appointment_cancelled", "Appointment cancelled",
 			"A patient cancelled their appointment.", map[string]string{"appointment_id": appointmentID})
 	}
 	return nil
@@ -665,7 +676,7 @@ func (s *PatientService) RescheduleAppointment(userID, appointmentID string, req
 	}
 	appt, _ := s.appts.FindByID(ctx, appointmentID)
 	if appt != nil {
-		_ = s.notif.Create(ctx, appt.ProfessionalID, "appointment", "Reschedule requested",
+		_ = s.notif.Create(ctx, appt.ProfessionalID, "appointment_rescheduled", "Reschedule requested",
 			"A patient proposed a new appointment time.", map[string]string{"appointment_id": appointmentID})
 	}
 	return appt, nil
@@ -681,6 +692,28 @@ func (s *PatientService) GetCarePlans(userID string) ([]models.CarePlan, error) 
 
 func (s *PatientService) UpdateCarePlanTasks(userID, planID string, tasks json.RawMessage) (*models.CarePlan, error) {
 	return s.emr.UpdateCarePlanTasks(context.Background(), userID, planID, tasks)
+}
+
+func (s *PatientService) ListFollowUps(userID string) ([]models.FollowUp, error) {
+	return s.emr.ListFollowUpsForPatient(context.Background(), userID)
+}
+
+func (s *PatientService) RespondFollowUp(userID, id string, req *models.RespondFollowUpRequest) (*models.FollowUp, error) {
+	ctx := context.Background()
+	f, err := s.emr.RespondFollowUp(ctx, id, userID, req.Response, req.NeedsReevaluation)
+	if err != nil {
+		return nil, err
+	}
+	if f != nil {
+		title := "Follow-up response received"
+		body := "A patient submitted their follow-up check-in."
+		if f.NeedsReevaluation {
+			title = "Patient may need re-evaluation"
+			body = "A patient's follow-up response was flagged for re-evaluation."
+		}
+		_ = s.notif.Create(ctx, f.ProfessionalID, "general", title, body, map[string]string{"follow_up_id": f.ID})
+	}
+	return f, nil
 }
 
 func (s *PatientService) GetRehabHistory(userID string, q *models.PaginationQuery) ([]interface{}, int64, error) {
@@ -797,10 +830,26 @@ func (s *EMRService) CreateCarePlan(professionalID string, req *models.CreateCar
 	}
 	shared := req.SharedWithPatient == nil || *req.SharedWithPatient
 	if shared {
-		_ = s.notif.Create(ctx, req.PatientID, "care_plan", "New care plan",
+		_ = s.notif.Create(ctx, req.PatientID, "care_plan_updated", "New care plan",
 			"Your care team created a new care plan: "+req.Title, map[string]string{"care_plan_id": plan.ID})
 	}
 	return plan, nil
+}
+
+// CreateFollowUp schedules a follow-up (e.g. at discharge) and notifies the patient.
+func (s *EMRService) CreateFollowUp(professionalID string, req *models.CreateFollowUpRequest) (*models.FollowUp, error) {
+	ctx := context.Background()
+	f, err := s.emr.CreateFollowUp(ctx, professionalID, req)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.notif.Create(ctx, req.PatientID, "general", "Follow-up scheduled",
+		"Your care team scheduled a follow-up check-in.", map[string]string{"follow_up_id": f.ID})
+	return f, nil
+}
+
+func (s *EMRService) ListFollowUpsForProfessional(professionalID string) ([]models.FollowUp, error) {
+	return s.emr.ListFollowUpsForProfessional(context.Background(), professionalID)
 }
 func (s *EMRService) GetCarePlans(professionalID, patientID string) ([]models.CarePlan, error) {
 	return s.emr.ListCarePlans(context.Background(), professionalID, patientID)
@@ -903,7 +952,7 @@ func (s *TherapayService) CreatePlan(professionalID string, req *models.CreateTh
 	if err != nil {
 		return nil, err
 	}
-	_ = s.notif.Create(ctx, req.PatientID, "payment", "New payment plan",
+	_ = s.notif.Create(ctx, req.PatientID, "payment_due", "New payment plan",
 		"A new TheraPay plan has been set up for you.", map[string]string{"plan_id": plan.ID})
 	return plan, nil
 }
@@ -925,8 +974,30 @@ func (s *TherapayService) GetPatientBalance(patientID string) (map[string]interf
 func (s *TherapayService) ApplyApplication(patientID string, data map[string]interface{}) (interface{}, error) {
 	return s.billing.CreateApplication(context.Background(), patientID, data)
 }
-func (s *TherapayService) GetApplications(userID string, q *models.PaginationQuery) ([]interface{}, int64, error) {
-	return s.billing.ListApplications(context.Background(), userID, q)
+func (s *TherapayService) GetApplications(userID, role string, q *models.PaginationQuery) ([]interface{}, int64, error) {
+	return s.billing.ListApplications(context.Background(), userID, role == "admin", q)
+}
+
+// ReviewApplication approves/rejects a TheraPay application and notifies the
+// patient (and professional, if one is attached).
+func (s *TherapayService) ReviewApplication(reviewerID, appID, status, notes string) error {
+	ctx := context.Background()
+	patientID, profID, err := s.billing.ReviewApplication(ctx, appID, reviewerID, status, notes)
+	if err != nil {
+		return err
+	}
+	title := "TheraPay application approved"
+	body := "Your TheraPay financing application was approved."
+	if status == "rejected" {
+		title = "TheraPay application declined"
+		body = "Your TheraPay financing application was declined."
+	}
+	_ = s.notif.Create(ctx, patientID, "payment_received", title, body, map[string]string{"application_id": appID})
+	if profID != nil && *profID != "" {
+		_ = s.notif.Create(ctx, *profID, "payment_received", "TheraPay decision",
+			"A TheraPay application you're linked to was "+status+".", map[string]string{"application_id": appID})
+	}
+	return nil
 }
 
 // ─── Admin Service ────────────────────────────────────────────────────────────
@@ -943,6 +1014,13 @@ type AdminService struct {
 
 func NewAdminService(cfg *config.Config, admin *repository.AdminRepository, users *repository.UserRepository, profs *repository.ProfessionalRepository, conns *repository.ConnectionRepository, notif *repository.NotificationRepository, mailer *email.Client) *AdminService {
 	return &AdminService{cfg: cfg, admin: admin, users: users, profs: profs, conns: conns, notif: notif, mailer: mailer}
+}
+
+func (s *AdminService) Announce(title, body, audience string) error {
+	if audience == "" {
+		audience = "all"
+	}
+	return s.notif.Broadcast(context.Background(), audience, title, body)
 }
 
 func (s *AdminService) GetStats() (*models.AdminStats, error) {
@@ -1224,7 +1302,7 @@ func (s *MessagingService) SendMessage(userID, senderType, conversationID string
 			if len(preview) > 80 {
 				preview = preview[:80] + "…"
 			}
-			_ = s.notif.Create(ctx, recipient, "message", "New message", preview,
+			_ = s.notif.Create(ctx, recipient, "message_received", "New message", preview,
 				map[string]string{"conversation_id": conversationID})
 		}
 	}

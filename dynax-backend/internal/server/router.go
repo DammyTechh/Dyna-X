@@ -165,6 +165,8 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			patient.GET("/sessions", h.Patient.GetSessions)
 			patient.GET("/care-plans", h.Patient.GetCarePlans)
 			patient.PATCH("/care-plans/:plan_id/tasks", h.Patient.UpdateCarePlanTasks)
+			patient.GET("/follow-ups", h.Patient.ListFollowUps)
+			patient.POST("/follow-ups/:follow_up_id/respond", h.Patient.RespondFollowUp)
 			patient.GET("/rehab-history", h.Patient.GetRehabHistory)
 		}
 
@@ -209,6 +211,9 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			emr.GET("/patient-records/:record_id", h.EMR.GetPatientRecord)
 			emr.PATCH("/patient-records/:record_id", h.EMR.UpdatePatientRecord)
 
+			emr.POST("/follow-ups", h.EMR.CreateFollowUp)
+			emr.GET("/follow-ups", h.EMR.ListFollowUps)
+
 			// Care Plans
 			emr.POST("/care-plans", h.EMR.CreateCarePlan)
 			emr.GET("/care-plans", h.EMR.ListCarePlans)
@@ -239,6 +244,7 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			// Applications — patients apply; admin/professional review
 			therapay.POST("/apply", middleware.RequireRole(models.RolePatient), h.TheraPay.ApplyForTheraPay)
 			therapay.GET("/applications", middleware.RequireAdminOrProfessional(), h.TheraPay.ListApplications)
+			therapay.POST("/applications/:application_id/review", middleware.RequireAdminOrProfessional(), h.TheraPay.ReviewApplication)
 		}
 
 		// ── Admin routes (admin only) ─────────────────────────────────────────
@@ -247,6 +253,7 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 		{
 			admin.GET("/stats", h.Admin.GetStats)
 			admin.GET("/analytics", h.Admin.GetAnalytics)
+			admin.POST("/announce", h.Admin.Announce)
 			admin.GET("/audit-logs", h.Admin.GetAuditLogs)
 
 			// Users

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useTherapayPlans, useCreateTherapayPlan, useMyPatients } from '@/hooks/useApi';
+import { useTherapayPlans, useCreateTherapayPlan, useMyPatients, useRecordPayment } from '@/hooks/useApi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -62,6 +62,19 @@ export default function TherapayPage() {
   };
 
   const plans = plansData?.data || [];
+  const recordPayment = useRecordPayment();
+  const [payFor, setPayFor] = useState<string | null>(null);
+  const [payAmount, setPayAmount] = useState('');
+
+  const submitPayment = async (planId: string) => {
+    const amount = parseFloat(payAmount);
+    if (!amount || amount <= 0) { toast.error('Enter a valid amount'); return; }
+    try {
+      await recordPayment.mutateAsync({ planId, amount });
+      toast.success('Payment recorded');
+      setPayFor(null); setPayAmount('');
+    } catch (e) { toast.error((e as Error).message || 'Could not record payment'); }
+  };
   const totalActive = plans.filter((p: TheraPay) => p.status === 'active').length;
   const totalRevenue = plans.reduce((sum: number, p: TheraPay) => sum + (p.amount_paid || 0), 0);
 
@@ -163,9 +176,24 @@ export default function TherapayPage() {
                         </p>
                         <p className="text-xs text-slate-500">outstanding</p>
                         {plan.status === 'active' && (
-                          <button className="mt-2 text-xs text-blue-600 hover:underline font-medium">
-                            Record payment
-                          </button>
+                          payFor === plan.id ? (
+                            <div className="mt-2 flex items-center gap-1.5 justify-end">
+                              <input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
+                                placeholder="Amount" autoFocus
+                                className="w-24 px-2 py-1 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                              <button onClick={() => submitPayment(plan.id)} disabled={recordPayment.isPending}
+                                className="px-2 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-60">
+                                {recordPayment.isPending ? '…' : 'Save'}
+                              </button>
+                              <button onClick={() => { setPayFor(null); setPayAmount(''); }}
+                                className="px-1.5 py-1 rounded-lg text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>
+                            </div>
+                          ) : (
+                            <button onClick={() => { setPayFor(plan.id); setPayAmount(''); }}
+                              className="mt-2 text-xs text-blue-600 hover:underline font-medium">
+                              Record payment
+                            </button>
+                          )
                         )}
                       </div>
                     </div>

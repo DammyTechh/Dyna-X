@@ -25,6 +25,7 @@ type Service interface {
 	ListSessions(q *models.PaginationQuery) ([]models.TherapySession, int64, error)
 	GetAuditLogs(q *models.PaginationQuery) ([]interface{}, int64, error)
 	GetAnalytics(period string) (map[string]interface{}, error)
+	Announce(title, body, audience string) error
 }
 
 func NewHandler(svc Service) *Handler {
@@ -269,4 +270,26 @@ func (h *Handler) GetAnalytics(c *gin.Context) {
 		return
 	}
 	response.OK(c, "Analytics retrieved", analytics)
+}
+
+// Announce broadcasts an in-app announcement to users (all or by role).
+func (h *Handler) Announce(c *gin.Context) {
+	var body struct {
+		Title    string `json:"title"`
+		Body     string `json:"body"`
+		Audience string `json:"audience"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Request body is malformed")
+		return
+	}
+	if body.Title == "" || body.Body == "" {
+		response.BadRequest(c, "INVALID_INPUT", "Title and body are required")
+		return
+	}
+	if err := h.service.Announce(body.Title, body.Body, body.Audience); err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Announcement sent", nil)
 }

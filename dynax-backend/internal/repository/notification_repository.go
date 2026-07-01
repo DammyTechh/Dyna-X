@@ -69,3 +69,15 @@ func (r *NotificationRepository) Create(ctx context.Context, userID, ntype, titl
 		userID, ntype, title, body, string(raw))
 	return err
 }
+
+// Broadcast creates a 'general' notification for every active user, optionally
+// filtered by role ("all", "patient", "physiotherapist", ...).
+func (r *NotificationRepository) Broadcast(ctx context.Context, audience, title, body string) error {
+	_, err := r.db.Exec(ctx,
+		`INSERT INTO public.notifications (user_id, type, title, body)
+		 SELECT id, 'general'::notification_type, $1, $2
+		 FROM public.dynax_users
+		 WHERE ($3 = 'all' OR role::text = $3) AND is_active = true`,
+		title, body, audience)
+	return err
+}

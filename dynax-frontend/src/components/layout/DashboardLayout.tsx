@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Calendar, FileText, MessageSquare,
   Bell, Settings, LogOut, ChevronLeft, ChevronRight,
   CreditCard, Bot, Activity, Shield, Menu, X,
-  ClipboardList, Scan, Heart, UserCheck,
+  ClipboardList, Scan, Heart, UserCheck, CalendarClock,
 } from 'lucide-react';
 import { tokenStore } from '@/lib/api';
 import { authService } from '@/lib/auth';
@@ -60,6 +60,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       { label: 'Clinical Notes', href: '/dashboard/professional/notes', icon: ClipboardList },
       { label: 'Patient Records', href: '/dashboard/professional/records', icon: FileText },
       { label: 'Care Plans', href: '/dashboard/professional/care-plans', icon: Heart },
+      { label: 'Follow-ups', href: '/dashboard/professional/follow-ups', icon: CalendarClock },
     ] : []),
     // TheraPay — physiotherapists only (financing applies to physio + patients)
     ...(role === 'physiotherapist' ? [
@@ -75,6 +76,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       { label: 'Appointments', href: '/dashboard/patient/appointments', icon: Calendar },
       { label: 'Sessions', href: '/dashboard/patient/sessions', icon: Activity },
       { label: 'Care Plans', href: '/dashboard/patient/care-plans', icon: Heart },
+      { label: 'Check-ins', href: '/dashboard/patient/follow-ups', icon: CalendarClock },
       { label: 'Payments', href: '/dashboard/patient/payments', icon: CreditCard },
     ] : []),
     // Admin routes
@@ -82,6 +84,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       { label: 'Users', href: '/dashboard/admin/users', icon: Users },
       { label: 'Professionals', href: '/dashboard/admin/professionals', icon: UserCheck },
       { label: 'Patients', href: '/dashboard/admin/patients', icon: Users },
+      { label: 'TheraPay', href: '/dashboard/admin/therapay', icon: CreditCard },
       { label: 'Analytics', href: '/dashboard/admin/analytics', icon: Activity },
       { label: 'Audit Logs', href: '/dashboard/admin/audit', icon: Shield },
     ] : []),

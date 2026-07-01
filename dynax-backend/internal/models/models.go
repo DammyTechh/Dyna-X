@@ -483,6 +483,34 @@ type CreateTherapayRequest struct {
 	InstallmentInterval *string  `json:"installment_interval,omitempty"`
 }
 
+// ─── Follow-ups ───────────────────────────────────────────────────────────────
+
+type FollowUp struct {
+	ID                string    `json:"id" db:"id"`
+	PatientID         string    `json:"patient_id" db:"patient_id"`
+	ProfessionalID    string    `json:"professional_id" db:"professional_id"`
+	Cadence           string    `json:"cadence" db:"cadence"`
+	DueDate           string    `json:"due_date" db:"due_date"`
+	Status            string    `json:"status" db:"status"`
+	Note              *string   `json:"note,omitempty" db:"note"`
+	PatientResponse   *string   `json:"patient_response,omitempty" db:"patient_response"`
+	NeedsReevaluation bool      `json:"needs_reevaluation" db:"needs_reevaluation"`
+	CreatedAt         time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
+}
+
+type CreateFollowUpRequest struct {
+	PatientID string `json:"patient_id" validate:"required,uuid"`
+	Cadence   string `json:"cadence,omitempty"`
+	DueDate   string `json:"due_date" validate:"required"`
+	Note      string `json:"note,omitempty"`
+}
+
+type RespondFollowUpRequest struct {
+	Response          string `json:"response" validate:"required"`
+	NeedsReevaluation bool   `json:"needs_reevaluation"`
+}
+
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 type Notification struct {

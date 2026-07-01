@@ -4,7 +4,7 @@ import { authService } from '@/lib/auth';
 import { useAuthStore } from '@/store/auth';
 import type {
   AuthResponse, ProfessionalProfile, PatientProfile, Appointment,
-  TherapySession, ClinicalNote, CarePlan, CarePlanTask, PatientRecord, TheraPay, Conversation, Message,
+  TherapySession, ClinicalNote, CarePlan, CarePlanTask, PatientRecord, TheraPay, FollowUp, Conversation, Message,
   Notification, AIConversation, AdminStats, User, PaginationParams,
   PaginatedResponse, DeviceMeasurement,
 } from '@/types';
@@ -177,8 +177,8 @@ export const useCancelAppointment = () => {
 export const useUpdateAppointment = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      apiPatch<Appointment>(`/professional/appointments/${id}`, { status }),
+    mutationFn: ({ id, status, scheduled_at }: { id: string; status?: string; scheduled_at?: string }) =>
+      apiPatch<Appointment>(`/professional/appointments/${id}`, { status, scheduled_at }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['professional', 'appointments'] }),
   });
 };
@@ -349,6 +349,74 @@ export const usePatientBalance = (patientId: string) =>
     queryFn: () => apiGet<{ outstanding: number; credits: number }>(`/therapay/balance/${patientId}`),
     enabled: !!patientId,
   });
+
+export const useRecordPayment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ planId, amount, notes }: { planId: string; amount: number; notes?: string }) =>
+      apiPost(`/therapay/plans/${planId}/payments`, { amount, notes }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['therapay', 'plans'] }),
+  });
+};
+
+export const useApplyTherapay = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { plan_type: string; requested_amount?: number; sessions_requested?: number; reason?: string }) =>
+      apiPost('/therapay/apply', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['therapay', 'applications'] }),
+  });
+};
+
+export const useTherapayApplications = (params?: PaginationParams, enabled = true) =>
+  useQuery({
+    queryKey: ['therapay', 'applications', params],
+    queryFn: () => apiGetPaginated('/therapay/applications', params as Record<string, unknown>),
+    enabled,
+  });
+
+export const useReviewApplication = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status, notes }: { id: string; status: 'approved' | 'rejected'; notes?: string }) =>
+      apiPost(`/therapay/applications/${id}/review`, { status, notes }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['therapay', 'applications'] }),
+  });
+};
+
+// ─── Follow-ups ───────────────────────────────────────────────────────────────
+export const useProfessionalFollowUps = () =>
+  useQuery<FollowUp[]>({ queryKey: ['emr', 'follow-ups'], queryFn: () => apiGet('/emr/follow-ups') });
+
+export const usePatientFollowUps = () =>
+  useQuery<FollowUp[]>({ queryKey: ['patient', 'follow-ups'], queryFn: () => apiGet('/patient/follow-ups') });
+
+export const useCreateFollowUp = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { patient_id: string; cadence?: string; due_date: string; note?: string }) =>
+      apiPost<FollowUp>('/emr/follow-ups', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['emr', 'follow-ups'] }),
+  });
+};
+
+export const useRespondFollowUp = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, response, needs_reevaluation }: { id: string; response: string; needs_reevaluation: boolean }) =>
+      apiPost<FollowUp>(`/patient/follow-ups/${id}/respond`, { response, needs_reevaluation }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['patient', 'follow-ups'] }),
+  });
+};
+
+export const useAnnounce = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { title: string; body: string; audience?: string }) =>
+      apiPost('/admin/announce', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+};
 
 // ─── Messaging ────────────────────────────────────────────────────────────────
 export const useConversations = () =>

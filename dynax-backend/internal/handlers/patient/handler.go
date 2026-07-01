@@ -28,6 +28,8 @@ type Service interface {
 	GetSessions(userID string, q *models.PaginationQuery) ([]models.TherapySession, int64, error)
 	GetCarePlans(userID string) ([]models.CarePlan, error)
 	UpdateCarePlanTasks(userID, planID string, tasks json.RawMessage) (*models.CarePlan, error)
+	ListFollowUps(userID string) ([]models.FollowUp, error)
+	RespondFollowUp(userID, id string, req *models.RespondFollowUpRequest) (*models.FollowUp, error)
 	GetRehabHistory(userID string, q *models.PaginationQuery) ([]interface{}, int64, error)
 }
 
@@ -314,4 +316,30 @@ func (h *Handler) RescheduleAppointment(c *gin.Context) {
 		return
 	}
 	response.OK(c, "Appointment rescheduled", appt)
+}
+
+// ListFollowUps returns the patient's follow-up check-ins.
+func (h *Handler) ListFollowUps(c *gin.Context) {
+	items, err := h.service.ListFollowUps(middleware.GetUserID(c))
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Follow-ups retrieved", items)
+}
+
+// RespondFollowUp submits a patient-reported outcome for a follow-up.
+func (h *Handler) RespondFollowUp(c *gin.Context) {
+	id := c.Param("follow_up_id")
+	var req models.RespondFollowUpRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "INVALID_PAYLOAD", "Request body is malformed")
+		return
+	}
+	f, err := h.service.RespondFollowUp(middleware.GetUserID(c), id, &req)
+	if err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Response submitted", f)
 }

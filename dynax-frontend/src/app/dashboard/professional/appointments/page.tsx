@@ -52,6 +52,21 @@ export default function AppointmentsPage() {
     }
   };
 
+  const [proposeFor, setProposeFor] = useState<string | null>(null);
+  const [proposeTime, setProposeTime] = useState('');
+
+  const proposeNewTime = async (id: string) => {
+    if (!proposeTime) { toast.error('Pick a new date and time'); return; }
+    try {
+      await updateAppt({ id, scheduled_at: new Date(proposeTime).toISOString() });
+      toast.success('New time proposed — patient notified');
+      setProposeFor(null); setProposeTime('');
+      refetch();
+    } catch (e) {
+      toast.error((e as Error).message || 'Could not propose new time');
+    }
+  };
+
   const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { session_type: 'virtual', duration_minutes: 60 },
@@ -221,11 +236,25 @@ export default function AppointmentsPage() {
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-60">
                             <Check className="w-3.5 h-3.5" /> Approve
                           </button>
+                          <button onClick={() => { setProposeFor(proposeFor === appt.id ? null : appt.id); setProposeTime(''); }} disabled={updating}
+                            className="flex items-center gap-1.5 px-3 py-1.5 border border-blue-200 text-blue-600 text-xs rounded-lg font-semibold hover:bg-blue-50 transition-colors disabled:opacity-60">
+                            <Clock className="w-3.5 h-3.5" /> Propose time
+                          </button>
                           <button onClick={() => decide(appt.id, 'rejected')} disabled={updating}
                             className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-200 text-rose-600 text-xs rounded-lg font-semibold hover:bg-rose-50 transition-colors disabled:opacity-60">
                             <X className="w-3.5 h-3.5" /> Decline
                           </button>
                         </>
+                      )}
+                      {proposeFor === appt.id && (
+                        <div className="flex items-center gap-1.5">
+                          <input type="datetime-local" value={proposeTime} onChange={(e) => setProposeTime(e.target.value)}
+                            className="px-2 py-1 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                          <button onClick={() => proposeNewTime(appt.id)} disabled={updating}
+                            className="px-2.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-60">
+                            Send
+                          </button>
+                        </div>
                       )}
                       {appt.status === 'scheduled' && appt.session_type === 'virtual' && (
                         <button onClick={() => setCallRoom(appt.id)}
