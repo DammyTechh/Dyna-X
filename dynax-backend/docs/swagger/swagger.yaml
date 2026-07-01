@@ -1,0 +1,3188 @@
+basePath: /api/v1
+definitions:
+  models.AIConversation:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      input:
+        type: string
+      response:
+        type: string
+      user_id:
+        type: string
+      user_role:
+        type: string
+    type: object
+  models.AIQueryRequest:
+    properties:
+      context:
+        description: patient_id context for richer AI
+        type: string
+      conversation_id:
+        type: string
+      input:
+        maxLength: 5000
+        minLength: 3
+        type: string
+    required:
+    - input
+    type: object
+  models.AdminStats:
+    properties:
+      active_care_plans:
+        type: integer
+      pending_approvals:
+        type: integer
+      sessions_this_month:
+        type: integer
+      total_patients:
+        type: integer
+      total_professionals:
+        type: integer
+      total_revenue:
+        type: number
+      total_sessions:
+        type: integer
+      total_users:
+        type: integer
+    type: object
+  models.Appointment:
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      duration_minutes:
+        type: integer
+      id:
+        type: string
+      meeting_url:
+        type: string
+      notes:
+        type: string
+      patient_id:
+        type: string
+      professional_id:
+        type: string
+      scheduled_at:
+        type: string
+      session_type:
+        description: virtual | in_person
+        type: string
+      status:
+        description: scheduled | completed | cancelled | no_show
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.ApproveProfessionalRequest:
+    properties:
+      is_approved:
+        type: boolean
+      notes:
+        type: string
+    required:
+    - is_approved
+    type: object
+  models.AssignProfessionalRequest:
+    properties:
+      patient_id:
+        type: string
+      professional_id:
+        type: string
+      role:
+        type: string
+    required:
+    - patient_id
+    - professional_id
+    - role
+    type: object
+  models.AuthResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      profile:
+        $ref: '#/definitions/models.Profile'
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  models.CarePlan:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      end_date:
+        type: string
+      goals:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      patient_id:
+        type: string
+      professional_id:
+        type: string
+      progress_notes:
+        type: string
+      start_date:
+        type: string
+      status:
+        description: active | completed | paused | cancelled
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.ChangePasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        minLength: 8
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
+  models.ClinicalNote:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      diagnosis_codes:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      is_confidential:
+        type: boolean
+      note_type:
+        description: soap | progress | assessment | referral
+        type: string
+      patient_id:
+        type: string
+      professional_id:
+        type: string
+      session_id:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.ConnectToProfessionalRequest:
+    properties:
+      professional_code:
+        type: string
+    required:
+    - professional_code
+    type: object
+  models.Conversation:
+    properties:
+      admin_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      last_message:
+        type: string
+      last_message_at:
+        type: string
+      patient_id:
+        type: string
+      professional_id:
+        type: string
+      unread_count:
+        type: integer
+    type: object
+  models.CreateAppointmentRequest:
+    properties:
+      description:
+        type: string
+      duration_minutes:
+        maximum: 480
+        minimum: 15
+        type: integer
+      meeting_url:
+        type: string
+      patient_id:
+        type: string
+      scheduled_at:
+        type: string
+      session_type:
+        enum:
+        - virtual
+        - in_person
+        type: string
+      title:
+        maxLength: 200
+        minLength: 3
+        type: string
+    required:
+    - duration_minutes
+    - patient_id
+    - scheduled_at
+    - session_type
+    - title
+    type: object
+  models.CreateCarePlanRequest:
+    properties:
+      description:
+        type: string
+      end_date:
+        type: string
+      goals:
+        items:
+          type: string
+        type: array
+      patient_id:
+        type: string
+      start_date:
+        type: string
+      title:
+        maxLength: 200
+        minLength: 3
+        type: string
+    required:
+    - patient_id
+    - start_date
+    - title
+    type: object
+  models.CreateClinicalNoteRequest:
+    properties:
+      content:
+        minLength: 10
+        type: string
+      diagnosis_codes:
+        items:
+          type: string
+        type: array
+      is_confidential:
+        type: boolean
+      note_type:
+        enum:
+        - soap
+        - progress
+        - assessment
+        - referral
+        type: string
+      patient_id:
+        type: string
+      session_id:
+        type: string
+      title:
+        maxLength: 200
+        minLength: 3
+        type: string
+    required:
+    - content
+    - note_type
+    - patient_id
+    - title
+    type: object
+  models.CreateDeviceMeasurementRequest:
+    properties:
+      body_region:
+        type: string
+      device_type:
+        type: string
+      measurements: {}
+      notes:
+        type: string
+      patient_id:
+        type: string
+    required:
+    - body_region
+    - device_type
+    - measurements
+    - patient_id
+    type: object
+  models.CreateSessionRequest:
+    properties:
+      appointment_id:
+        type: string
+      assessment_note:
+        type: string
+      duration_minutes:
+        minimum: 5
+        type: integer
+      objective_note:
+        type: string
+      patient_id:
+        type: string
+      plan_note:
+        type: string
+      session_date:
+        type: string
+      session_type:
+        enum:
+        - virtual
+        - in_person
+        type: string
+      subjective_note:
+        type: string
+    required:
+    - duration_minutes
+    - patient_id
+    - session_date
+    - session_type
+    type: object
+  models.CreateTherapayRequest:
+    properties:
+      installment_amount:
+        type: number
+      installment_interval:
+        type: string
+      patient_id:
+        type: string
+      plan_type:
+        enum:
+        - session
+        - bundle
+        - subscription
+        - installment
+        type: string
+      sessions_total:
+        type: integer
+      total_amount:
+        type: number
+    required:
+    - patient_id
+    - plan_type
+    - total_amount
+    type: object
+  models.DeviceMeasurement:
+    properties:
+      body_region:
+        type: string
+      created_at:
+        type: string
+      device_type:
+        type: string
+      id:
+        type: string
+      measurements:
+        description: JSONB
+      notes:
+        type: string
+      patient_id:
+        type: string
+      professional_id:
+        type: string
+      status:
+        description: draft | submitted | approved | fabricating | delivered
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  models.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  models.Message:
+    properties:
+      content:
+        type: string
+      conversation_id:
+        type: string
+      created_at:
+        type: string
+      file_name:
+        type: string
+      file_url:
+        type: string
+      id:
+        type: string
+      is_read:
+        type: boolean
+      read_at:
+        type: string
+      sender_id:
+        type: string
+      sender_type:
+        description: patient | professional | admin
+        type: string
+    type: object
+  models.Notification:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      data: {}
+      id:
+        type: string
+      is_read:
+        type: boolean
+      read_at:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      user_id:
+        type: string
+    type: object
+  models.PatientProfile:
+    properties:
+      address:
+        type: string
+      assigned_professional_id:
+        type: string
+      condition:
+        type: string
+      created_at:
+        type: string
+      date_of_birth:
+        type: string
+      diagnosis_notes:
+        type: string
+      email:
+        type: string
+      emergency_contact:
+        type: string
+      full_name:
+        type: string
+      gender:
+        type: string
+      id:
+        type: string
+      personal_code:
+        type: string
+      phone_number:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  models.ProfessionalConnection:
+    properties:
+      connected_at:
+        type: string
+      id:
+        type: string
+      patient_id:
+        type: string
+      professional_id:
+        type: string
+      status:
+        type: string
+    type: object
+  models.ProfessionalProfile:
+    properties:
+      approval_status:
+        type: string
+      avatar_url:
+        type: string
+      bio:
+        type: string
+      clinic_code:
+        type: string
+      clinic_name:
+        type: string
+      created_at:
+        type: string
+      credentials:
+        type: string
+      email:
+        type: string
+      experience_years:
+        type: integer
+      full_name:
+        type: string
+      id:
+        type: string
+      in_person_sessions_enabled:
+        type: boolean
+      is_approved:
+        type: boolean
+      license_number:
+        type: string
+      license_type:
+        type: string
+      personal_code:
+        type: string
+      phone_number:
+        type: string
+      professional_type:
+        type: string
+      session_rate:
+        type: number
+      specializations:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      virtual_sessions_enabled:
+        type: boolean
+    type: object
+  models.Profile:
+    properties:
+      address:
+        type: string
+      avatar_url:
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      created_at:
+        type: string
+      date_of_birth:
+        type: string
+      full_name:
+        type: string
+      gender:
+        type: string
+      id:
+        type: string
+      personal_code:
+        type: string
+      phone_number:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  models.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  models.RegisterRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      password:
+        minLength: 8
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/models.Role'
+        enum:
+        - patient
+        - physiotherapist
+        - prosthetist
+        - orthotist
+        - occupational_therapist
+        - speech_therapist
+        - mental_health_clinician
+    required:
+    - email
+    - full_name
+    - password
+    - role
+    type: object
+  models.ResetPasswordRequest:
+    properties:
+      password:
+        minLength: 8
+        type: string
+      token:
+        type: string
+    required:
+    - password
+    - token
+    type: object
+  models.Role:
+    enum:
+    - admin
+    - prosthetist
+    - orthotist
+    - physiotherapist
+    - occupational_therapist
+    - speech_therapist
+    - mental_health_clinician
+    - patient
+    type: string
+    x-enum-varnames:
+    - RoleAdmin
+    - RoleProsthetist
+    - RoleOrthotist
+    - RolePhysiotherapist
+    - RoleOccupationalTherapist
+    - RoleSpeechTherapist
+    - RoleMentalHealthClinician
+    - RolePatient
+  models.SendMessageRequest:
+    properties:
+      content:
+        maxLength: 5000
+        minLength: 1
+        type: string
+      file_name:
+        type: string
+      file_url:
+        type: string
+    required:
+    - content
+    type: object
+  models.TheraPay:
+    properties:
+      amount_paid:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: string
+      installment_amount:
+        type: number
+      installment_interval:
+        type: string
+      next_payment_date:
+        type: string
+      patient_id:
+        type: string
+      plan_type:
+        description: session | bundle | subscription | installment
+        type: string
+      professional_id:
+        type: string
+      sessions_total:
+        type: integer
+      sessions_used:
+        type: integer
+      status:
+        type: string
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  models.TherapySession:
+    properties:
+      appointment_id:
+        type: string
+      assessment_note:
+        type: string
+      created_at:
+        type: string
+      duration_minutes:
+        type: integer
+      goals_achieved:
+        type: boolean
+      id:
+        type: string
+      objective_note:
+        type: string
+      patient_id:
+        type: string
+      patient_rating:
+        type: integer
+      plan_note:
+        type: string
+      professional_id:
+        type: string
+      session_date:
+        type: string
+      session_type:
+        type: string
+      status:
+        type: string
+      subjective_note:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.UpdateAppointmentRequest:
+    properties:
+      description:
+        type: string
+      duration_minutes:
+        type: integer
+      meeting_url:
+        type: string
+      notes:
+        type: string
+      scheduled_at:
+        type: string
+      status:
+        enum:
+        - scheduled
+        - completed
+        - cancelled
+        - no_show
+        type: string
+      title:
+        type: string
+    type: object
+  models.UpdatePatientProfileRequest:
+    properties:
+      address:
+        type: string
+      date_of_birth:
+        type: string
+      emergency_contact:
+        type: string
+      full_name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      gender:
+        type: string
+      phone_number:
+        type: string
+    type: object
+  models.UpdateProfessionalProfileRequest:
+    properties:
+      bio:
+        maxLength: 1000
+        type: string
+      clinic_name:
+        type: string
+      experience_years:
+        type: integer
+      full_name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      in_person_sessions_enabled:
+        type: boolean
+      license_number:
+        type: string
+      phone_number:
+        type: string
+      session_rate:
+        type: number
+      specializations:
+        items:
+          type: string
+        type: array
+      virtual_sessions_enabled:
+        type: boolean
+    type: object
+  models.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      role:
+        $ref: '#/definitions/models.Role'
+      updated_at:
+        type: string
+    type: object
+  response.APIError:
+    properties:
+      code:
+        type: string
+      details: {}
+      message:
+        type: string
+    type: object
+  response.Envelope:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/response.APIError'
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/response.Meta'
+      success:
+        type: boolean
+    type: object
+  response.Meta:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@dynalimb.com
+    name: Dynalimb Technologies
+    url: https://dynalimb.com
+  description: Rehabilitation & Prosthetic Care Platform — Backend API
+  license:
+    name: Proprietary
+    url: https://dynalimb.com/license
+  termsOfService: https://dynalimb.com/terms
+  title: DynaX API
+  version: "1.0"
+paths:
+  /admin/analytics:
+    get:
+      description: Returns platform analytics broken down by time period.
+      parameters:
+      - description: 'Period: day | week | month | year (default: month)'
+        in: query
+        name: period
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get platform analytics
+      tags:
+      - admin
+  /admin/assign:
+    post:
+      consumes:
+      - application/json
+      description: Admin-assigns a professional to a patient's care team.
+      parameters:
+      - description: Assignment data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.AssignProfessionalRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Assign a professional to a patient
+      tags:
+      - admin
+  /admin/audit-logs:
+    get:
+      description: Returns paginated platform audit logs (admin only).
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get audit logs
+      tags:
+      - admin
+  /admin/patients:
+    get:
+      description: Returns a paginated list of all patients on the platform.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Search by name
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.PatientProfile'
+                  type: array
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List all patients
+      tags:
+      - admin
+  /admin/professionals:
+    get:
+      description: Returns a paginated list of professionals, optionally filtered
+        by approval status.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: 'Filter by status: pending | approved | rejected'
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.ProfessionalProfile'
+                  type: array
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List professionals
+      tags:
+      - admin
+  /admin/professionals/{professional_id}/approve:
+    post:
+      consumes:
+      - application/json
+      description: Approves or rejects a professional's registration (triggers email
+        notification).
+      parameters:
+      - description: Professional UUID
+        in: path
+        name: professional_id
+        required: true
+        type: string
+      - description: Approval decision
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ApproveProfessionalRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ProfessionalProfile'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Approve or reject a professional
+      tags:
+      - admin
+  /admin/stats:
+    get:
+      description: Returns high-level platform statistics (admin only).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.AdminStats'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Platform statistics
+      tags:
+      - admin
+  /admin/users:
+    get:
+      description: Returns a paginated list of all platform users.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Search by email or name
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.User'
+                  type: array
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - admin
+  /admin/users/{user_id}/deactivate:
+    post:
+      description: Disables a user's account, preventing login.
+      parameters:
+      - description: User UUID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Deactivate user account
+      tags:
+      - admin
+  /admin/users/{user_id}/reactivate:
+    post:
+      description: Re-enables a previously deactivated user account.
+      parameters:
+      - description: User UUID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Reactivate user account
+      tags:
+      - admin
+  /ai/conversations/{conversation_id}:
+    delete:
+      description: Permanently deletes an AI conversation thread and all its messages.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: conversation_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Delete an AI conversation
+      tags:
+      - ai
+    get:
+      description: Returns all messages in a specific AI conversation thread.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: conversation_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.AIConversation'
+                  type: array
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get a full AI conversation thread
+      tags:
+      - ai
+  /ai/generate/care-plan/{patient_id}:
+    post:
+      description: Generates AI-powered rehabilitation care plan suggestions for a
+        patient.
+      parameters:
+      - description: Patient UUID
+        in: path
+        name: patient_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: AI-generate care plan suggestions
+      tags:
+      - ai
+  /ai/generate/soap-note:
+    post:
+      consumes:
+      - application/json
+      description: Generates a pre-filled SOAP note based on session context using
+        AI (professional only).
+      parameters:
+      - description: Session context (patient_id, session_id, observations)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: AI-generate a SOAP note
+      tags:
+      - ai
+  /ai/history:
+    get:
+      description: Returns paginated AI assistant conversation history for the current
+        user.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.AIConversation'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get AI conversation history
+      tags:
+      - ai
+  /ai/query:
+    post:
+      consumes:
+      - application/json
+      description: Queries the AI assistant with context-aware prompting based on
+        user role (professional, patient, admin).
+      parameters:
+      - description: AI query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.AIQueryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.AIConversation'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Send a message to the DynaX AI assistant
+      tags:
+      - ai
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      description: Allows an authenticated user to change their own password.
+      parameters:
+      - description: Current + new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Change password (authenticated)
+      tags:
+      - auth
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Sends a password reset email to the provided address (via Resend).
+      parameters:
+      - description: Email address
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      summary: Request password reset
+      tags:
+      - auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns JWT access + refresh tokens.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.AuthResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      summary: Login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Invalidates the current session token.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Returns the authenticated user's profile.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.User'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Exchanges a valid refresh token for a new access token pair.
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.AuthResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      summary: Refresh access token
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account (patient or professional). An email
+        verification is sent on success.
+      parameters:
+      - description: Registration payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.AuthResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      summary: Register a new user
+      tags:
+      - auth
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Resets the user's password using the token received via email.
+      parameters:
+      - description: Token + new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      summary: Reset password using token
+      tags:
+      - auth
+  /emr/care-plans:
+    get:
+      description: Returns all care plans for a specific patient.
+      parameters:
+      - description: Patient UUID
+        in: query
+        name: patient_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.CarePlan'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List care plans for a patient
+      tags:
+      - emr
+    post:
+      consumes:
+      - application/json
+      description: Creates a new rehabilitation care plan for a patient.
+      parameters:
+      - description: Care plan payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateCarePlanRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.CarePlan'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Create care plan
+      tags:
+      - emr
+  /emr/care-plans/{plan_id}:
+    patch:
+      consumes:
+      - application/json
+      description: Updates a care plan status and progress notes.
+      parameters:
+      - description: Care plan UUID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      - description: Status and notes
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.CarePlan'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Update care plan
+      tags:
+      - emr
+  /emr/devices:
+    get:
+      description: Returns all prosthetic/orthotic measurement records for a patient.
+      parameters:
+      - description: Patient UUID
+        in: query
+        name: patient_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.DeviceMeasurement'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List device measurements for a patient
+      tags:
+      - emr
+    post:
+      consumes:
+      - application/json
+      description: Records prosthetic or orthotic measurements for a patient (P&O
+        professionals only).
+      parameters:
+      - description: Measurement payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateDeviceMeasurementRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.DeviceMeasurement'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Create device measurement record
+      tags:
+      - emr
+  /emr/devices/{device_id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Updates the fabrication/delivery status of a device measurement.
+      parameters:
+      - description: Device UUID
+        in: path
+        name: device_id
+        required: true
+        type: string
+      - description: New status
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.DeviceMeasurement'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Update device status
+      tags:
+      - emr
+  /emr/notes:
+    get:
+      description: Returns paginated clinical notes for a specific patient.
+      parameters:
+      - description: Patient UUID
+        in: query
+        name: patient_id
+        required: true
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.ClinicalNote'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List clinical notes
+      tags:
+      - emr
+    post:
+      consumes:
+      - application/json
+      description: Creates a new clinical note (SOAP, progress, assessment, referral)
+        for a patient.
+      parameters:
+      - description: Note payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateClinicalNoteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ClinicalNote'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Create a clinical note
+      tags:
+      - emr
+  /emr/notes/{note_id}:
+    delete:
+      description: Permanently deletes a clinical note (only by creator).
+      parameters:
+      - description: Note UUID
+        in: path
+        name: note_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Delete a clinical note
+      tags:
+      - emr
+    get:
+      description: Returns a single clinical note by ID.
+      parameters:
+      - description: Note UUID
+        in: path
+        name: note_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ClinicalNote'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get a clinical note
+      tags:
+      - emr
+    patch:
+      consumes:
+      - application/json
+      description: Updates the content of an existing clinical note.
+      parameters:
+      - description: Note UUID
+        in: path
+        name: note_id
+        required: true
+        type: string
+      - description: Updated content
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ClinicalNote'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Update clinical note content
+      tags:
+      - emr
+  /messages/conversations:
+    get:
+      description: Returns all conversations (chats) the authenticated user participates
+        in.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Conversation'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List conversations
+      tags:
+      - messaging
+  /messages/conversations/{conversation_id}:
+    post:
+      description: Returns an existing conversation with a user or creates a new one.
+      parameters:
+      - description: Target user UUID
+        in: path
+        name: conversation_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Conversation'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get or create a conversation
+      tags:
+      - messaging
+  /messages/conversations/{conversation_id}/messages:
+    get:
+      description: Returns paginated messages in a specific conversation.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: conversation_id
+        required: true
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Message'
+                  type: array
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get messages in a conversation
+      tags:
+      - messaging
+    post:
+      consumes:
+      - application/json
+      description: Sends a message in a conversation.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: conversation_id
+        required: true
+        type: string
+      - description: Message content
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.SendMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Message'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Send a message
+      tags:
+      - messaging
+  /messages/conversations/{conversation_id}/read:
+    post:
+      description: Marks all messages in a conversation as read by the current user.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: conversation_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Mark conversation as read
+      tags:
+      - messaging
+  /notifications:
+    get:
+      description: Returns paginated in-app notifications for the authenticated user.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Notification'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List notifications
+      tags:
+      - notifications
+  /notifications/{notification_id}/read:
+    post:
+      description: Marks a single notification as read.
+      parameters:
+      - description: Notification UUID
+        in: path
+        name: notification_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Mark a notification as read
+      tags:
+      - notifications
+  /notifications/preferences:
+    get:
+      description: Returns the user's notification preference settings.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get notification preferences
+      tags:
+      - notifications
+    patch:
+      consumes:
+      - application/json
+      description: Updates the user's notification preference settings.
+      parameters:
+      - description: Preference settings
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Update notification preferences
+      tags:
+      - notifications
+  /notifications/read-all:
+    post:
+      description: Marks all the user's notifications as read.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications as read
+      tags:
+      - notifications
+  /notifications/unread-count:
+    get:
+      description: Returns the number of unread notifications for the authenticated
+        user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get unread notification count
+      tags:
+      - notifications
+  /patient/appointments:
+    get:
+      description: Returns a paginated list of the patient's scheduled appointments.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Appointment'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List patient's appointments
+      tags:
+      - patient
+  /patient/care-plans:
+    get:
+      description: Returns all active and historical care plans for the patient.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.CarePlan'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List patient's care plans
+      tags:
+      - patient
+  /patient/connect:
+    post:
+      consumes:
+      - application/json
+      description: Links the patient to a professional using their unique personal
+        code/PIN.
+      parameters:
+      - description: Professional PIN
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ConnectToProfessionalRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ProfessionalConnection'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Connect to a professional via PIN
+      tags:
+      - patient
+  /patient/connect/{professional_id}:
+    delete:
+      description: Removes the patient's connection to a professional.
+      parameters:
+      - description: Professional UUID
+        in: path
+        name: professional_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Disconnect from a professional
+      tags:
+      - patient
+  /patient/professionals:
+    get:
+      description: Returns all professionals the patient is connected to.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.ProfessionalProfile'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List connected professionals
+      tags:
+      - patient
+  /patient/profile:
+    get:
+      description: Returns the authenticated patient's profile.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.PatientProfile'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get patient profile
+      tags:
+      - patient
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates the patient's own profile.
+      parameters:
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdatePatientProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.PatientProfile'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Update patient profile
+      tags:
+      - patient
+  /patient/rehab-history:
+    get:
+      description: Returns a paginated rehabilitation history for the patient (sessions,
+        notes, progress).
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get rehabilitation history
+      tags:
+      - patient
+  /patient/sessions:
+    get:
+      description: Returns a paginated list of the patient's therapy sessions.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.TherapySession'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List patient's session history
+      tags:
+      - patient
+  /professional/appointments:
+    get:
+      description: Returns paginated appointments for the authenticated professional.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Appointment'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List appointments
+      tags:
+      - professional
+    post:
+      consumes:
+      - application/json
+      description: Schedules a new appointment for a patient.
+      parameters:
+      - description: Appointment details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateAppointmentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Appointment'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Create appointment
+      tags:
+      - professional
+  /professional/appointments/{appointment_id}:
+    patch:
+      consumes:
+      - application/json
+      description: Updates an existing appointment (reschedule, status change, notes).
+      parameters:
+      - description: Appointment UUID
+        in: path
+        name: appointment_id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateAppointmentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Appointment'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Update appointment
+      tags:
+      - professional
+  /professional/appointments/{appointment_id}/cancel:
+    post:
+      description: Cancels a scheduled appointment.
+      parameters:
+      - description: Appointment UUID
+        in: path
+        name: appointment_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Cancel appointment
+      tags:
+      - professional
+  /professional/generate-code:
+    post:
+      description: Generates a unique professional PIN that patients can use to connect.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Generate or refresh personal PIN
+      tags:
+      - professional
+  /professional/patients:
+    get:
+      description: Returns a paginated list of patients connected to this professional.
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Search by name or email
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.PatientProfile'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List professional's patients
+      tags:
+      - professional
+  /professional/patients/{patient_id}:
+    get:
+      description: Returns full profile of a specific patient assigned to this professional.
+      parameters:
+      - description: Patient UUID
+        in: path
+        name: patient_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.PatientProfile'
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get a patient's details
+      tags:
+      - professional
+  /professional/profile:
+    get:
+      description: Returns the authenticated professional's profile details.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ProfessionalProfile'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get professional profile
+      tags:
+      - professional
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates the authenticated professional's profile.
+      parameters:
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateProfessionalProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ProfessionalProfile'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Update professional profile
+      tags:
+      - professional
+  /professional/sessions:
+    get:
+      description: Returns paginated session logs for the professional.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.TherapySession'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List therapy sessions
+      tags:
+      - professional
+    post:
+      consumes:
+      - application/json
+      description: Records a new session log (SOAP notes, duration, outcomes).
+      parameters:
+      - description: Session data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.TherapySession'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Log a therapy session
+      tags:
+      - professional
+  /professional/sessions/{session_id}:
+    get:
+      description: Returns a single session log by ID.
+      parameters:
+      - description: Session UUID
+        in: path
+        name: session_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.TherapySession'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get session detail
+      tags:
+      - professional
+  /therapay/applications:
+    get:
+      description: Returns paginated TheraPay applications (admin / professional view).
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List TheraPay applications
+      tags:
+      - therapay
+  /therapay/apply:
+    post:
+      consumes:
+      - application/json
+      description: Submits a TheraPay application for installment payment approval.
+      parameters:
+      - description: Application data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Apply for TheraPay
+      tags:
+      - therapay
+  /therapay/balance/{patient_id}:
+    get:
+      description: Returns the outstanding balance and session credits for a patient.
+      parameters:
+      - description: Patient UUID
+        in: path
+        name: patient_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get patient's payment balance
+      tags:
+      - therapay
+  /therapay/plans:
+    get:
+      description: Returns paginated therapy payment plans for the authenticated user.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.TheraPay'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List TheraPay plans
+      tags:
+      - therapay
+    post:
+      consumes:
+      - application/json
+      description: Creates a flexible therapy payment plan (session, bundle, subscription,
+        or installment).
+      parameters:
+      - description: Payment plan details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateTherapayRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.TheraPay'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Create TheraPay plan
+      tags:
+      - therapay
+  /therapay/plans/{plan_id}:
+    get:
+      description: Returns a single payment plan by ID.
+      parameters:
+      - description: Plan UUID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.TheraPay'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get a TheraPay plan
+      tags:
+      - therapay
+  /therapay/plans/{plan_id}/cancel:
+    post:
+      description: Cancels an active payment plan.
+      parameters:
+      - description: Plan UUID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Cancel a TheraPay plan
+      tags:
+      - therapay
+  /therapay/plans/{plan_id}/payments:
+    post:
+      consumes:
+      - application/json
+      description: Records a payment against an existing TheraPay installment or session
+        plan.
+      parameters:
+      - description: Plan UUID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      - description: Payment amount and notes
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.TheraPay'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Record a payment
+      tags:
+      - therapay
+securityDefinitions:
+  BearerAuth:
+    description: 'Enter your bearer token in the format: **Bearer &lt;token&gt;**'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
+tags:
+- name: auth             @tag.description Authentication & user management
+- name: professional     @tag.description Professional clinic & patient management
+- name: patient          @tag.description Patient dashboard & connection
+- name: emr              @tag.description Mini EMR — notes, care plans, devices
+- name: sessions         @tag.description Therapy session logging
+- name: therapay         @tag.description TheraPay flexible payment system
+- name: messaging        @tag.description In-app messaging
+- name: notifications    @tag.description Notification management
+- name: ai               @tag.description AI assistant & SOAP generation
+- name: admin            @tag.description Admin-only platform management
