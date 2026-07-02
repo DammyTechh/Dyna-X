@@ -1,6 +1,8 @@
 package notifications
 
 import (
+	"os"
+
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
 	"github.com/dynalimb/dynax-backend/pkg/response"
@@ -18,6 +20,7 @@ type Service interface {
 	GetUnreadCount(userID string) (int64, error)
 	UpdatePreferences(userID string, prefs map[string]interface{}) error
 	GetPreferences(userID string) (map[string]interface{}, error)
+	SaveSubscription(userID, endpoint, p256dh, auth string) error
 }
 
 func NewHandler(svc Service) *Handler {
@@ -149,4 +152,29 @@ func (h *Handler) UpdatePreferences(c *gin.Context) {
 		return
 	}
 	response.OK(c, "Preferences updated", nil)
+}
+
+// VapidPublicKey returns the server's VAPID public key so the browser can subscribe.
+func (h *Handler) VapidPublicKey(c *gin.Context) {
+	response.OK(c, "VAPID key", map[string]string{"public_key": os.Getenv("VAPID_PUBLIC_KEY")})
+}
+
+// SubscribePush stores a browser web-push subscription for the current user.
+func (h *Handler) SubscribePush(c *gin.Context) {
+	var body struct {
+		Endpoint string `json:"endpoint"`
+		Keys     struct {
+			P256dh string `json:"p256dh"`
+			Auth   string `json:"auth"`
+		} `json:"keys"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.Endpoint == "" || body.Keys.P256dh == "" || body.Keys.Auth == "" {
+		response.BadRequest(c, "INVALID_SUBSCRIPTION", "A valid push subscription is required")
+		return
+	}
+	if err := h.service.SaveSubscription(middleware.GetUserID(c), body.Endpoint, body.Keys.P256dh, body.Keys.Auth); err != nil {
+		response.InternalError(c, err)
+		return
+	}
+	response.OK(c, "Subscribed to push notifications", nil)
 }

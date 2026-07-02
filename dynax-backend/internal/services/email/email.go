@@ -15,7 +15,7 @@ const (
 	appURL = "https://dynax.app"
 	// Email logo must be an absolute, publicly reachable URL. It points at the
 	// live frontend. Change this to https://dynax.app/... once that domain is live.
-	logoURL   = "https://dyna-x.netlify.app/images/logo-light.png"
+	logoURL   = "https://dynax.app/images/logo-light.png"
 	supportTo = "support@dynax.app"
 	orgName   = "Dynalimb Technologies"
 	brandFrom = "#1D4ED8"
@@ -224,6 +224,57 @@ func (c *Client) SendDxPin(to, professionalName, professionalEmail, code string)
 		button("Go to my dashboard →", appURL+"/dashboard/patient", "") +
 		`<p style="margin:8px 0 0;color:#94a3b8;font-size:13px;line-height:1.6;">If you don't recognise this invitation you can safely ignore this email.</p>`
 	return c.send(to, fmt.Sprintf("Your DynaX connection PIN from %s", professionalName), layout("Your DynaX connection PIN.", body))
+}
+
+// SendPaymentReminder reminds a patient of an outstanding TheraPay balance.
+func (c *Client) SendPaymentReminder(to, patientName, amount, dueDate string) error {
+	greeting := "there"
+	if patientName != "" {
+		greeting = patientName
+	}
+	due := ""
+	if dueDate != "" {
+		due = p(fmt.Sprintf("Your next payment is due on <strong>%s</strong>.", dueDate))
+	}
+	body := h1("Payment reminder") +
+		p(fmt.Sprintf("Hi %s,", greeting)) +
+		p("This is a friendly reminder about your TheraPay plan. You have an outstanding balance of:") +
+		fmt.Sprintf(`<div style="background:#fff7ed;border-radius:10px;padding:20px;margin:0 0 8px;text-align:center;">
+      <p style="margin:0;color:#c2410c;font-size:22px;font-weight:700;">%s</p>
+    </div>`, amount) +
+		due +
+		button("View my payments →", appURL+"/dashboard/patient/payments", "#ea580c")
+	return c.send(to, "Reminder: your TheraPay balance", layout("A reminder about your TheraPay balance.", body))
+}
+
+// SendFollowUpReminder nudges a patient to complete a scheduled check-in.
+func (c *Client) SendFollowUpReminder(to, patientName string) error {
+	greeting := "there"
+	if patientName != "" {
+		greeting = patientName
+	}
+	body := h1("Time for your check-in") +
+		p(fmt.Sprintf("Hi %s,", greeting)) +
+		p("Your care team scheduled a follow-up check-in and it's now due. It only takes a minute — let them know how you've been doing since your last visit.") +
+		button("Complete my check-in →", appURL+"/dashboard/patient/follow-ups", "")
+	return c.send(to, "Your DynaX check-in is due", layout("Your follow-up check-in is due.", body))
+}
+
+// SendMissedMessages tells a user they have unread messages waiting.
+func (c *Client) SendMissedMessages(to, name string, count int) error {
+	greeting := "there"
+	if name != "" {
+		greeting = name
+	}
+	noun := "message"
+	if count != 1 {
+		noun = "messages"
+	}
+	body := h1("You have unread messages") +
+		p(fmt.Sprintf("Hi %s,", greeting)) +
+		p(fmt.Sprintf("You have <strong>%d unread %s</strong> waiting on DynaX. Sign in to read and reply.", count, noun)) +
+		button("Open messages →", appURL+"/dashboard/messages", "")
+	return c.send(to, "You have unread messages on DynaX", layout("You have unread messages waiting.", body))
 }
 
 // ── Core send ─────────────────────────────────────────────────────────────────

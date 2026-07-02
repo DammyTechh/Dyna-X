@@ -176,6 +176,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <LogOut className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span>Sign Out</span>}
         </button>
+        {!collapsed && (
+          <p className="mt-3 text-center text-[10px] text-slate-600 tracking-wide">
+            build v2 · follow-ups · push
+          </p>
+        )}
       </div>
     </div>
   );

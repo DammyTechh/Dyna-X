@@ -119,6 +119,8 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			notif.POST("/:notification_id/read", h.Notifications.MarkRead)
 			notif.GET("/preferences", h.Notifications.GetPreferences)
 			notif.PATCH("/preferences", h.Notifications.UpdatePreferences)
+			notif.GET("/push/vapid-key", h.Notifications.VapidPublicKey)
+			notif.POST("/push/subscribe", h.Notifications.SubscribePush)
 		}
 
 		// ── Messaging (all roles) ─────────────────────────────────────────────

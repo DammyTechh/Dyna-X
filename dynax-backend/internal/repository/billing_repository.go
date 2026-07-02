@@ -91,6 +91,7 @@ func (r *BillingRepository) RecordPayment(ctx context.Context, planID string, am
 		`UPDATE public.therapay_plans
 		 SET amount_paid = amount_paid + $2,
 		     status = CASE WHEN amount_paid + $2 >= total_amount THEN 'completed'::payment_status ELSE status END,
+		     reminder_sent_at = NULL,
 		     updated_at = NOW()
 		 WHERE id=$1`, planID, amount); err != nil {
 		return nil, err

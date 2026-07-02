@@ -61,12 +61,20 @@ func (r *NotificationRepository) UnreadCount(ctx context.Context, userID string)
 }
 
 // Create pushes a new notification (used by other services).
+// OnNotify, if set, is invoked (in a goroutine) after every notification is
+// created. It exists so an optional web-push sender can deliver a push for the
+// same event without this package depending on any push library. Default nil.
+var OnNotify func(userID, title, body string)
+
 func (r *NotificationRepository) Create(ctx context.Context, userID, ntype, title, body string, data interface{}) error {
 	raw, _ := json.Marshal(data)
 	_, err := r.db.Exec(ctx,
 		`INSERT INTO public.notifications (user_id, type, title, body, data)
 		 VALUES ($1,$2::notification_type,$3,$4,$5::jsonb)`,
 		userID, ntype, title, body, string(raw))
+	if err == nil && OnNotify != nil {
+		go OnNotify(userID, title, body)
+	}
 	return err
 }
 
@@ -80,4 +88,48 @@ func (r *NotificationRepository) Broadcast(ctx context.Context, audience, title,
 		 WHERE ($3 = 'all' OR role::text = $3) AND is_active = true`,
 		title, body, audience)
 	return err
+}
+
+// ─── Web push subscriptions ───────────────────────────────────────────────────
+
+// PushSubscription is a stored browser push endpoint for a user.
+type PushSubscription struct {
+	UserID   string
+	Endpoint string
+	P256dh   string
+	Auth     string
+}
+
+// SaveSubscription upserts a browser push subscription (unique by endpoint).
+func (r *NotificationRepository) SaveSubscription(ctx context.Context, userID, endpoint, p256dh, auth string) error {
+	_, err := r.db.Exec(ctx,
+		`INSERT INTO public.push_subscriptions (user_id, endpoint, p256dh, auth)
+		 VALUES ($1,$2,$3,$4)
+		 ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id, p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth`,
+		userID, endpoint, p256dh, auth)
+	return err
+}
+
+// DeleteSubscription removes a subscription by endpoint (e.g. on unsubscribe or 410 Gone).
+func (r *NotificationRepository) DeleteSubscription(ctx context.Context, endpoint string) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM public.push_subscriptions WHERE endpoint = $1`, endpoint)
+	return err
+}
+
+// ListSubscriptions returns all push subscriptions for a user (used by the optional push sender).
+func (r *NotificationRepository) ListSubscriptions(ctx context.Context, userID string) ([]PushSubscription, error) {
+	rows, err := r.db.Query(ctx, `SELECT user_id, endpoint, p256dh, auth FROM public.push_subscriptions WHERE user_id = $1`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []PushSubscription{}
+	for rows.Next() {
+		var s PushSubscription
+		if err := rows.Scan(&s.UserID, &s.Endpoint, &s.P256dh, &s.Auth); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
 }

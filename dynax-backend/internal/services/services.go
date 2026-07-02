@@ -1136,6 +1136,10 @@ func (s *NotificationService) GetUnreadCount(userID string) (int64, error) {
 func (s *NotificationService) UpdatePreferences(userID string, prefs map[string]interface{}) error {
 	return nil // preferences are not persisted yet
 }
+func (s *NotificationService) SaveSubscription(userID, endpoint, p256dh, auth string) error {
+	return s.notif.SaveSubscription(context.Background(), userID, endpoint, p256dh, auth)
+}
+
 func (s *NotificationService) GetPreferences(userID string) (map[string]interface{}, error) {
 	return map[string]interface{}{
 		"email_notifications":   true,

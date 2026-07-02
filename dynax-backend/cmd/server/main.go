@@ -41,6 +41,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/dynalimb/dynax-backend/internal/auth"
 	"github.com/dynalimb/dynax-backend/internal/config"
 	adminH "github.com/dynalimb/dynax-backend/internal/handlers/admin"
@@ -53,6 +55,7 @@ import (
 	msgH "github.com/dynalimb/dynax-backend/internal/handlers/sessions"
 	therapayH "github.com/dynalimb/dynax-backend/internal/handlers/therapay"
 	"github.com/dynalimb/dynax-backend/internal/repository"
+	"github.com/dynalimb/dynax-backend/internal/scheduler"
 	"github.com/dynalimb/dynax-backend/internal/repository/db"
 	"github.com/dynalimb/dynax-backend/internal/server"
 	"github.com/dynalimb/dynax-backend/internal/services"
@@ -124,6 +127,21 @@ func main() {
 
 	// ── Router ────────────────────────────────────────────────────────────────
 	r := server.NewRouter(cfg, jwtMgr, handlers)
+
+	// ── Scheduler (email + in-app reminders) ──────────────────────────────────
+	sched := scheduler.New(pool, mailer, notifRepo)
+	sched.Start(context.Background(), 15*time.Minute)
+
+	// Secured manual trigger so an external cron can also run the jobs.
+	r.POST("/internal/scheduler/run", func(c *gin.Context) {
+		token := os.Getenv("SCHEDULER_TOKEN")
+		if token == "" || c.GetHeader("X-Scheduler-Token") != token {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		go sched.RunOnce(context.Background())
+		c.JSON(http.StatusOK, gin.H{"status": "scheduler triggered"})
+	})
 
 	// ── HTTP server with graceful shutdown ────────────────────────────────────
 	srv := &http.Server{

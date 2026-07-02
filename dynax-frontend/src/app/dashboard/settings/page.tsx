@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/store/auth';
 import { tokenStore } from '@/lib/api';
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { enablePush, pushPermission } from '@/lib/push';
 
 type Section = 'profile' | 'security' | 'notifications' | 'privacy';
 
@@ -270,6 +271,40 @@ function SecuritySection() {
 
 // ─── Notifications Section ────────────────────────────────────────────────────
 
+function PushEnableRow() {
+  const [perm, setPerm] = useState<string>('default');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { setPerm(pushPermission()); }, []);
+
+  const handleEnable = async () => {
+    setBusy(true);
+    try {
+      const res = await enablePush();
+      if (res.ok) { toast.success('Browser push notifications enabled'); setPerm('granted'); }
+      else { toast.error(res.reason || 'Could not enable push'); }
+    } finally { setBusy(false); }
+  };
+
+  const granted = perm === 'granted';
+  return (
+    <div className="flex items-center justify-between p-4 rounded-xl border border-blue-100 bg-blue-50/60">
+      <div>
+        <p className="text-sm font-semibold text-slate-800">Browser push notifications</p>
+        <p className="text-xs text-slate-500 mt-0.5">
+          {granted ? 'This device is set up to receive push alerts.' : 'Get alerts for messages, calls, appointments and reminders — even when DynaX is closed.'}
+        </p>
+      </div>
+      <button onClick={handleEnable} disabled={busy || granted}
+        className={cn('flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors flex-shrink-0',
+          granted ? 'bg-green-100 text-green-700' : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60')}>
+        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : granted ? <Check className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+        {granted ? 'Enabled' : 'Enable on this device'}
+      </button>
+    </div>
+  );
+}
+
 function NotificationsSection() {
   const [prefs, setPrefs] = useState({
     email_enabled: true,
@@ -320,6 +355,8 @@ function NotificationsSection() {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-6">
       <h2 className="font-display font-semibold text-lg text-slate-900">Notification Preferences</h2>
+
+      <PushEnableRow />
 
       {groups.map((group) => (
         <div key={group.title}>
