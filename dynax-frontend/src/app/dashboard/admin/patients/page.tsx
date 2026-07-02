@@ -60,7 +60,8 @@ export default function AdminPatientsPage() {
             <>
               <div className="divide-y divide-slate-50">
                 {patients.map((p) => (
-                  <div key={p.id as string} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors">
+                  <div key={p.id as string}>
+                  <div className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-teal-400 flex items-center justify-center flex-shrink-0">
                       <span className="text-white font-semibold text-sm">
                         {(p.full_name as string)?.charAt(0)?.toUpperCase()}
@@ -90,6 +91,26 @@ export default function AdminPatientsPage() {
                         <LinkIcon className="w-4 h-4" />
                       </button>
                     </div>
+                    </div>
+                    {connectFor === (p.id as string) && (
+                      <div className="px-6 pb-4 flex items-center gap-2 bg-slate-50/60">
+                        <select value={selProf} onChange={(e) => setSelProf(e.target.value)}
+                          className="flex-1 max-w-xs px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-200">
+                          <option value="">Select a professional…</option>
+                          {professionals.map((pr) => (
+                            <option key={(pr.user_id || pr.id) as string} value={(pr.user_id || pr.id) as string}>
+                              {((pr.full_name as string) || (pr.email as string))}{pr.professional_type ? ` — ${pr.professional_type as string}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <button onClick={() => doConnect((p.user_id || p.id) as string)} disabled={assigning}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 disabled:opacity-60">
+                          {assigning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}Connect
+                        </button>
+                        <button onClick={() => { setConnectFor(null); setSelProf(''); }}
+                          className="px-2 py-2 rounded-lg text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useAdminProfessionals, useApproveProfessional } from '@/hooks/useApi';
+import { useAdminProfessionals, useApproveProfessional, useStartConversation } from '@/hooks/useApi';
+import { useRouter } from 'next/navigation';
 import {
   Search, Loader2, CheckCircle, XCircle, Clock,
-  UserCheck, Filter, ChevronDown,
+  UserCheck, Filter, ChevronDown, MessageCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -27,6 +28,12 @@ export default function AdminProfessionalsPage() {
 
   const { data, isLoading, refetch } = useAdminProfessionals(status || undefined);
   const { mutateAsync: approve, isPending: approving } = useApproveProfessional();
+  const { mutateAsync: startConv } = useStartConversation();
+  const router = useRouter();
+  const messageProfessional = async (uid: string) => {
+    try { const c = await startConv(uid); router.push(`/dashboard/messages?c=${c.id}`); }
+    catch (e) { toast.error((e as Error).message || 'Could not open chat'); }
+  };
 
   const handleApprove = async (id: string, name: string) => {
     try {
@@ -170,9 +177,18 @@ export default function AdminProfessionalsPage() {
                         </div>
                       )}
                       {approvalStatus === 'approved' && (
-                        <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium flex-shrink-0">
-                          <CheckCircle className="w-4 h-4" /> Approved
-                        </span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => messageProfessional(profId)}
+                            title="Message professional"
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                          >
+                            <MessageCircle className="w-4 h-4" /> Message
+                          </button>
+                          <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+                            <CheckCircle className="w-4 h-4" /> Approved
+                          </span>
+                        </div>
                       )}
                       {approvalStatus === 'rejected' && (
                         <button

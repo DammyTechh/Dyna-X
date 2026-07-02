@@ -420,7 +420,7 @@ export const useAnnounce = () => {
 
 // ─── Messaging ────────────────────────────────────────────────────────────────
 export const useConversations = () =>
-  useQuery<Conversation[]>({ queryKey: qk.conversations, queryFn: () => apiGet('/messages/conversations') });
+  useQuery<Conversation[]>({ queryKey: qk.conversations, queryFn: () => apiGet('/messages/conversations'), refetchInterval: 8000 });
 
 export const useMessages = (conversationId: string, params?: PaginationParams) =>
   useQuery<PaginatedResponse<Message>>({
