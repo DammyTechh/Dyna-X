@@ -55,11 +55,12 @@ import (
 	msgH "github.com/dynalimb/dynax-backend/internal/handlers/sessions"
 	therapayH "github.com/dynalimb/dynax-backend/internal/handlers/therapay"
 	"github.com/dynalimb/dynax-backend/internal/repository"
-	"github.com/dynalimb/dynax-backend/internal/scheduler"
 	"github.com/dynalimb/dynax-backend/internal/repository/db"
+	"github.com/dynalimb/dynax-backend/internal/scheduler"
 	"github.com/dynalimb/dynax-backend/internal/server"
 	"github.com/dynalimb/dynax-backend/internal/services"
 	"github.com/dynalimb/dynax-backend/internal/services/email"
+	"github.com/dynalimb/dynax-backend/internal/studio"
 	"github.com/dynalimb/dynax-backend/pkg/logger"
 )
 
@@ -123,6 +124,7 @@ func main() {
 		Notifications: notifH.NewHandler(svcNotif),
 		AI:            aiH.NewHandler(svcAI),
 		Messaging:     msgH.NewHandler(svcMsg),
+		Studio:        studio.NewHandler(pool),
 	}
 
 	// ── Router ────────────────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ import (
 	therapayH "github.com/dynalimb/dynax-backend/internal/handlers/therapay"
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
+	"github.com/dynalimb/dynax-backend/internal/studio"
 
 	swaggerDocs "github.com/dynalimb/dynax-backend/docs/swagger" // swagger docs
 )
@@ -35,6 +36,7 @@ type Handlers struct {
 	Notifications *notifH.Handler
 	AI            *aiH.Handler
 	Messaging     *msgH.Handler
+	Studio        *studio.Handler
 }
 
 // NewRouter constructs and returns the gin engine with all routes registered.
@@ -101,6 +103,12 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 	// ── Public share view (no JWT) ────────────────────────────────────────────
 	v1.GET("/shared/:token", h.EMR.GetSharedDevice)
 
+	// ── DynaX Studio device endpoints (bearer ingestion token; public) ────────
+	// The desktop app authenticates with its own "<uuid>.<secret>" ingestion
+	// token, independent of the platform JWT.
+	v1.POST("/events", h.Studio.IngestEvents)
+	v1.GET("/releases/current", h.Studio.CurrentRelease)
+
 	// ── Protected routes (JWT required) ───────────────────────────────────────
 	protected := v1.Group("")
 	protected.Use(middleware.Authenticate(jwtMgr))
@@ -121,6 +129,15 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			notif.PATCH("/preferences", h.Notifications.UpdatePreferences)
 			notif.GET("/push/vapid-key", h.Notifications.VapidPublicKey)
 			notif.POST("/push/subscribe", h.Notifications.SubscribePush)
+		}
+
+		// ── DynaX Studio administration (admin only) ──────────────────────────
+		studioAdmin := protected.Group("/studio")
+		studioAdmin.Use(middleware.RequireAdmin())
+		{
+			studioAdmin.POST("/tokens", h.Studio.CreateToken)
+			studioAdmin.GET("/tokens", h.Studio.ListTokens)
+			studioAdmin.POST("/tokens/:token_id/revoke", h.Studio.RevokeToken)
 		}
 
 		// ── Messaging (all roles) ─────────────────────────────────────────────
