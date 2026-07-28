@@ -22,6 +22,18 @@ const nextConfig = {
     config.experiments = { ...config.experiments, asyncWebAssembly: true };
     return config;
   },
+  async rewrites() {
+    // scanner.dynax.app stands on its own: its root opens the DynaX Scanner.
+    // It serves the same Next app (one deployment, shared .dynax.app session),
+    // so every /dashboard/professional/scanner/* route works on the subdomain too.
+    return [
+      {
+        source: '/',
+        has: [{ type: 'host', value: 'scanner.dynax.app' }],
+        destination: '/dashboard/professional/scanner',
+      },
+    ];
+  },
   async headers() {
     return [
       {

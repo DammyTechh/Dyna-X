@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   Share2, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Download,
   Eye, Edit3, Layers, X, Send, Copy, Check, SlidersHorizontal,
-  Link as LinkIcon, Loader2, ArrowLeft, Upload, Camera, Grid3x3, RotateCw,
+  Link as LinkIcon, Loader2, ArrowLeft, Upload, Camera, Grid3x3, RotateCw, ScanLine,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -224,6 +224,15 @@ function EditorInner() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Take a scan (opens the DynaX Scanner) */}
+          <Link
+            href="/dashboard/professional/scanner"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-teal-600 text-white hover:bg-teal-500 transition-colors"
+          >
+            <ScanLine className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Take a Scan</span>
+          </Link>
+
           {/* Import scan */}
           <input
             ref={fileInputRef}

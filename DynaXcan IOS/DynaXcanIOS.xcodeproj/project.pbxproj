@@ -1,0 +1,501 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* AppDelegate.swift */; };
+		A10000000000000000000002 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* SceneDelegate.swift */; };
+		A10000000000000000000003 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* AppConfiguration.swift */; };
+		A10000000000000000000004 /* BodySegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* BodySegment.swift */; };
+		A10000000000000000000005 /* ScanConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* ScanConfiguration.swift */; };
+		A10000000000000000000006 /* ScanError.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* ScanError.swift */; };
+		A10000000000000000000007 /* ScanMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* ScanMetadata.swift */; };
+		A10000000000000000000008 /* DeviceCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* DeviceCapabilities.swift */; };
+		A10000000000000000000009 /* BodySegmentPickerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* BodySegmentPickerViewController.swift */; };
+		A1000000000000000000000A /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000B /* LaunchScreen.storyboard */; };
+		A1000000000000000000000B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* Assets.xcassets */; };
+		A10000000000000000000010 /* CaptureSessionDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* CaptureSessionDelegate.swift */; };
+		A10000000000000000000011 /* CaptureSessionProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* CaptureSessionProtocol.swift */; };
+		A10000000000000000000012 /* SCSessionAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* SCSessionAdapter.swift */; };
+		A10000000000000000000013 /* LiDARSessionAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* LiDARSessionAdapter.swift */; };
+		A10000000000000000000014 /* SCFusionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* SCFusionManager.swift */; };
+		A10000000000000000000015 /* StandardCyborgFusion in Frameworks */ = {isa = PBXBuildFile; productRef = A81000000000000000000001 /* StandardCyborgFusion */; };
+		A10000000000000000000016 /* StandardCyborgUI in Frameworks */ = {isa = PBXBuildFile; productRef = A81000000000000000000002 /* StandardCyborgUI */; };
+		A10000000000000000000017 /* StandardCyborgFusion in Embed Frameworks */ = {isa = PBXBuildFile; productRef = A81000000000000000000001 /* StandardCyborgFusion */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A10000000000000000000018 /* StandardCyborgUI in Embed Frameworks */ = {isa = PBXBuildFile; productRef = A81000000000000000000002 /* StandardCyborgUI */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A10000000000000000000019 /* PassController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* PassController.swift */; };
+		A1000000000000000000001A /* FrameAccumulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* FrameAccumulator.swift */; };
+		A1000000000000000000001B /* CaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* CaptureSession.swift */; };
+		A1000000000000000000001C /* MotionMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* MotionMonitor.swift */; };
+		A1000000000000000000001D /* WorkingDistanceEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* WorkingDistanceEstimator.swift */; };
+		A1000000000000000000001E /* EnvironmentChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001E /* EnvironmentChecker.swift */; };
+		A1000000000000000000001F /* GuidanceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001F /* GuidanceEngine.swift */; };
+		A10000000000000000000020 /* TrackingRecoveryEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* TrackingRecoveryEngine.swift */; };
+		A10000000000000000000021 /* RawPointCloudStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* RawPointCloudStore.swift */; };
+		A10000000000000000000022 /* MeshGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* MeshGenerator.swift */; };
+		A10000000000000000000023 /* PLYExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* PLYExporter.swift */; };
+		A10000000000000000000024 /* OBJExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* OBJExporter.swift */; };
+		A10000000000000000000025 /* ExportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* ExportCoordinator.swift */; };
+		A10000000000000000000026 /* ExportsDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* ExportsDirectory.swift */; };
+		A10000000000000000000027 /* ScanSessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* ScanSessionState.swift */; };
+		A10000000000000000000028 /* ScanCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* ScanCoordinator.swift */; };
+		A10000000000000000000029 /* DynaXBrand.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* DynaXBrand.swift */; };
+		A1000000000000000000002A /* MetalCameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002A /* MetalCameraPreviewView.swift */; };
+		A1000000000000000000002B /* EnvironmentCheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002B /* EnvironmentCheckView.swift */; };
+		A1000000000000000000002C /* CaptureGuidanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002C /* CaptureGuidanceView.swift */; };
+		A1000000000000000000002D /* PassProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002D /* PassProgressView.swift */; };
+		A1000000000000000000002E /* ScanViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002E /* ScanViewController.swift */; };
+		A1000000000000000000002F /* ScanResultViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002F /* ScanResultViewController.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A30000000000000000000004 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				A10000000000000000000017 /* StandardCyborgFusion in Embed Frameworks */,
+				A10000000000000000000018 /* StandardCyborgUI in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* BodySegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodySegment.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* ScanConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanConfiguration.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* ScanError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanError.swift; sourceTree = "<group>"; };
+		A20000000000000000000007 /* ScanMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanMetadata.swift; sourceTree = "<group>"; };
+		A20000000000000000000008 /* DeviceCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCapabilities.swift; sourceTree = "<group>"; };
+		A20000000000000000000009 /* BodySegmentPickerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodySegmentPickerViewController.swift; sourceTree = "<group>"; };
+		A2000000000000000000000A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = SOURCE_ROOT; };
+		A2000000000000000000000B /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		A2000000000000000000000C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A2000000000000000000000D /* DynaXcanIOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DynaXcanIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2000000000000000000000E /* FUTURE-WORK.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "FUTURE-WORK.md"; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000010 /* CaptureSessionDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSessionDelegate.swift; sourceTree = "<group>"; };
+		A20000000000000000000011 /* CaptureSessionProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSessionProtocol.swift; sourceTree = "<group>"; };
+		A20000000000000000000012 /* SCSessionAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SCSessionAdapter.swift; sourceTree = "<group>"; };
+		A20000000000000000000013 /* LiDARSessionAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiDARSessionAdapter.swift; sourceTree = "<group>"; };
+		A20000000000000000000014 /* SCFusionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SCFusionManager.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* PassController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassController.swift; sourceTree = "<group>"; };
+		A2000000000000000000001A /* FrameAccumulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameAccumulator.swift; sourceTree = "<group>"; };
+		A2000000000000000000001B /* CaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSession.swift; sourceTree = "<group>"; };
+		A2000000000000000000001C /* MotionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionMonitor.swift; sourceTree = "<group>"; };
+		A2000000000000000000001D /* WorkingDistanceEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingDistanceEstimator.swift; sourceTree = "<group>"; };
+		A2000000000000000000001E /* EnvironmentChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentChecker.swift; sourceTree = "<group>"; };
+		A2000000000000000000001F /* GuidanceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidanceEngine.swift; sourceTree = "<group>"; };
+		A20000000000000000000020 /* TrackingRecoveryEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingRecoveryEngine.swift; sourceTree = "<group>"; };
+		A20000000000000000000021 /* RawPointCloudStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawPointCloudStore.swift; sourceTree = "<group>"; };
+		A20000000000000000000022 /* MeshGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeshGenerator.swift; sourceTree = "<group>"; };
+		A20000000000000000000023 /* PLYExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PLYExporter.swift; sourceTree = "<group>"; };
+		A20000000000000000000024 /* OBJExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OBJExporter.swift; sourceTree = "<group>"; };
+		A20000000000000000000025 /* ExportCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportCoordinator.swift; sourceTree = "<group>"; };
+		A20000000000000000000026 /* ExportsDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportsDirectory.swift; sourceTree = "<group>"; };
+		A20000000000000000000027 /* ScanSessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanSessionState.swift; sourceTree = "<group>"; };
+		A20000000000000000000028 /* ScanCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanCoordinator.swift; sourceTree = "<group>"; };
+		A20000000000000000000029 /* DynaXBrand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynaXBrand.swift; sourceTree = "<group>"; };
+		A2000000000000000000002A /* MetalCameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalCameraPreviewView.swift; sourceTree = "<group>"; };
+		A2000000000000000000002B /* EnvironmentCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentCheckView.swift; sourceTree = "<group>"; };
+		A2000000000000000000002C /* CaptureGuidanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureGuidanceView.swift; sourceTree = "<group>"; };
+		A2000000000000000000002D /* PassProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassProgressView.swift; sourceTree = "<group>"; };
+		A2000000000000000000002E /* ScanViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanViewController.swift; sourceTree = "<group>"; };
+		A2000000000000000000002F /* ScanResultViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanResultViewController.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000015 /* StandardCyborgFusion in Frameworks */,
+				A10000000000000000000016 /* StandardCyborgUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A40000000000000000000002 /* App */,
+				A40000000000000000000008 /* Capture */,
+				A40000000000000000000009 /* Guidance */,
+				A4000000000000000000000A /* Processing */,
+				A40000000000000000000003 /* Scanning */,
+				A40000000000000000000004 /* StandardCyborgBridge */,
+				A40000000000000000000005 /* UI */,
+				A40000000000000000000006 /* Resources */,
+				A2000000000000000000000A /* Info.plist */,
+				A2000000000000000000000E /* FUTURE-WORK.md */,
+				A40000000000000000000007 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A40000000000000000000002 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* AppDelegate.swift */,
+				A20000000000000000000002 /* SceneDelegate.swift */,
+				A20000000000000000000003 /* AppConfiguration.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000003 /* Scanning */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000004 /* BodySegment.swift */,
+				A20000000000000000000005 /* ScanConfiguration.swift */,
+				A20000000000000000000006 /* ScanError.swift */,
+				A20000000000000000000007 /* ScanMetadata.swift */,
+				A20000000000000000000027 /* ScanSessionState.swift */,
+				A20000000000000000000028 /* ScanCoordinator.swift */,
+			);
+			path = Scanning;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000008 /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000010 /* CaptureSessionDelegate.swift */,
+				A2000000000000000000001B /* CaptureSession.swift */,
+				A20000000000000000000019 /* PassController.swift */,
+				A2000000000000000000001A /* FrameAccumulator.swift */,
+				A2000000000000000000001C /* MotionMonitor.swift */,
+				A2000000000000000000001D /* WorkingDistanceEstimator.swift */,
+				A20000000000000000000020 /* TrackingRecoveryEngine.swift */,
+			);
+			path = Capture;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000009 /* Guidance */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000001E /* EnvironmentChecker.swift */,
+				A2000000000000000000001F /* GuidanceEngine.swift */,
+			);
+			path = Guidance;
+			sourceTree = "<group>";
+		};
+		A4000000000000000000000A /* Processing */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000021 /* RawPointCloudStore.swift */,
+				A20000000000000000000022 /* MeshGenerator.swift */,
+				A20000000000000000000023 /* PLYExporter.swift */,
+				A20000000000000000000024 /* OBJExporter.swift */,
+				A20000000000000000000025 /* ExportCoordinator.swift */,
+				A20000000000000000000026 /* ExportsDirectory.swift */,
+			);
+			path = Processing;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000004 /* StandardCyborgBridge */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000008 /* DeviceCapabilities.swift */,
+				A20000000000000000000011 /* CaptureSessionProtocol.swift */,
+				A20000000000000000000012 /* SCSessionAdapter.swift */,
+				A20000000000000000000013 /* LiDARSessionAdapter.swift */,
+				A20000000000000000000014 /* SCFusionManager.swift */,
+			);
+			path = StandardCyborgBridge;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000005 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000009 /* BodySegmentPickerViewController.swift */,
+				A20000000000000000000029 /* DynaXBrand.swift */,
+				A2000000000000000000002A /* MetalCameraPreviewView.swift */,
+				A2000000000000000000002B /* EnvironmentCheckView.swift */,
+				A2000000000000000000002C /* CaptureGuidanceView.swift */,
+				A2000000000000000000002D /* PassProgressView.swift */,
+				A2000000000000000000002E /* ScanViewController.swift */,
+				A2000000000000000000002F /* ScanResultViewController.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000006 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000B /* LaunchScreen.storyboard */,
+				A2000000000000000000000C /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000007 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000D /* DynaXcanIOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* DynaXcanIOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000002 /* Build configuration list for PBXNativeTarget "DynaXcanIOS" */;
+			buildPhases = (
+				A30000000000000000000003 /* Sources */,
+				A30000000000000000000001 /* Frameworks */,
+				A30000000000000000000004 /* Embed Frameworks */,
+				A30000000000000000000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DynaXcanIOS;
+			packageProductDependencies = (
+				A81000000000000000000001 /* StandardCyborgFusion */,
+				A81000000000000000000002 /* StandardCyborgUI */,
+			);
+			productName = DynaXcanIOS;
+			productReference = A2000000000000000000000D /* DynaXcanIOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A60000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					A50000000000000000000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = A90000000000000000000001 /* Build configuration list for PBXProject "DynaXcanIOS" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A40000000000000000000001;
+			packageReferences = (
+				A80000000000000000000001 /* XCLocalSwiftPackageReference "Dependencies/StandardCyborgCocoa" */,
+				A80000000000000000000002 /* XCLocalSwiftPackageReference "Dependencies/StandardCyborgCocoa/StandardCyborgUI" */,
+				A80000000000000000000003 /* XCLocalSwiftPackageReference "Dependencies/ZipArchive" */,
+			);
+			productRefGroup = A40000000000000000000007 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000000000000000000001 /* DynaXcanIOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A30000000000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000B /* Assets.xcassets in Resources */,
+				A1000000000000000000000A /* LaunchScreen.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A30000000000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* AppDelegate.swift in Sources */,
+				A10000000000000000000002 /* SceneDelegate.swift in Sources */,
+				A10000000000000000000003 /* AppConfiguration.swift in Sources */,
+				A10000000000000000000004 /* BodySegment.swift in Sources */,
+				A10000000000000000000005 /* ScanConfiguration.swift in Sources */,
+				A10000000000000000000006 /* ScanError.swift in Sources */,
+				A10000000000000000000007 /* ScanMetadata.swift in Sources */,
+				A10000000000000000000008 /* DeviceCapabilities.swift in Sources */,
+				A10000000000000000000009 /* BodySegmentPickerViewController.swift in Sources */,
+				A10000000000000000000010 /* CaptureSessionDelegate.swift in Sources */,
+				A10000000000000000000011 /* CaptureSessionProtocol.swift in Sources */,
+				A10000000000000000000012 /* SCSessionAdapter.swift in Sources */,
+				A10000000000000000000013 /* LiDARSessionAdapter.swift in Sources */,
+				A10000000000000000000014 /* SCFusionManager.swift in Sources */,
+				A10000000000000000000019 /* PassController.swift in Sources */,
+				A1000000000000000000001A /* FrameAccumulator.swift in Sources */,
+				A1000000000000000000001B /* CaptureSession.swift in Sources */,
+				A1000000000000000000001C /* MotionMonitor.swift in Sources */,
+				A1000000000000000000001D /* WorkingDistanceEstimator.swift in Sources */,
+				A1000000000000000000001E /* EnvironmentChecker.swift in Sources */,
+				A1000000000000000000001F /* GuidanceEngine.swift in Sources */,
+				A10000000000000000000020 /* TrackingRecoveryEngine.swift in Sources */,
+				A10000000000000000000021 /* RawPointCloudStore.swift in Sources */,
+				A10000000000000000000022 /* MeshGenerator.swift in Sources */,
+				A10000000000000000000023 /* PLYExporter.swift in Sources */,
+				A10000000000000000000024 /* OBJExporter.swift in Sources */,
+				A10000000000000000000025 /* ExportCoordinator.swift in Sources */,
+				A10000000000000000000026 /* ExportsDirectory.swift in Sources */,
+				A10000000000000000000027 /* ScanSessionState.swift in Sources */,
+				A10000000000000000000028 /* ScanCoordinator.swift in Sources */,
+				A10000000000000000000029 /* DynaXBrand.swift in Sources */,
+				A1000000000000000000002A /* MetalCameraPreviewView.swift in Sources */,
+				A1000000000000000000002B /* EnvironmentCheckView.swift in Sources */,
+				A1000000000000000000002C /* CaptureGuidanceView.swift in Sources */,
+				A1000000000000000000002D /* PassProgressView.swift in Sources */,
+				A1000000000000000000002E /* ScanViewController.swift in Sources */,
+				A1000000000000000000002F /* ScanResultViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A70000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+		};
+			name = Debug;
+		};
+		A70000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A70000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dynaxcan.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A70000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dynaxcan.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A90000000000000000000001 /* Build configuration list for PBXProject "DynaXcanIOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000001 /* Debug */,
+				A70000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A90000000000000000000002 /* Build configuration list for PBXNativeTarget "DynaXcanIOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000003 /* Debug */,
+				A70000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A80000000000000000000001 /* XCLocalSwiftPackageReference "Dependencies/StandardCyborgCocoa" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Dependencies/StandardCyborgCocoa;
+		};
+		A80000000000000000000002 /* XCLocalSwiftPackageReference "Dependencies/StandardCyborgCocoa/StandardCyborgUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Dependencies/StandardCyborgCocoa/StandardCyborgUI;
+		};
+		A80000000000000000000003 /* XCLocalSwiftPackageReference "Dependencies/ZipArchive" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Dependencies/ZipArchive;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A81000000000000000000001 /* StandardCyborgFusion */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A80000000000000000000001 /* XCLocalSwiftPackageReference "Dependencies/StandardCyborgCocoa" */;
+			productName = StandardCyborgFusion;
+		};
+		A81000000000000000000002 /* StandardCyborgUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A80000000000000000000002 /* XCLocalSwiftPackageReference "Dependencies/StandardCyborgCocoa/StandardCyborgUI" */;
+			productName = StandardCyborgUI;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A60000000000000000000001 /* Project object */;
+}

@@ -20,6 +20,7 @@ import (
 	therapayH "github.com/dynalimb/dynax-backend/internal/handlers/therapay"
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
+	"github.com/dynalimb/dynax-backend/internal/scanner"
 	"github.com/dynalimb/dynax-backend/internal/studio"
 
 	swaggerDocs "github.com/dynalimb/dynax-backend/docs/swagger" // swagger docs
@@ -37,6 +38,7 @@ type Handlers struct {
 	AI            *aiH.Handler
 	Messaging     *msgH.Handler
 	Studio        *studio.Handler
+	Scanner       *scanner.Handler
 }
 
 // NewRouter constructs and returns the gin engine with all routes registered.
@@ -138,6 +140,19 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			studioAdmin.POST("/tokens", h.Studio.CreateToken)
 			studioAdmin.GET("/tokens", h.Studio.ListTokens)
 			studioAdmin.POST("/tokens/:token_id/revoke", h.Studio.RevokeToken)
+		}
+
+		// ── DynaX Scanner (video → 3D reconstruction) ─────────────────────────
+		scannerGroup := protected.Group("/scanner")
+		{
+			scannerGroup.GET("/capture/config", h.Scanner.CaptureConfig)
+			scannerGroup.GET("/scans", h.Scanner.ListScans)
+			scannerGroup.POST("/scans", h.Scanner.CreateScan)
+			scannerGroup.POST("/device-scans", h.Scanner.UploadDeviceScan)
+			scannerGroup.GET("/scans/:id", h.Scanner.GetScan)
+			scannerGroup.PUT("/scans/:id/input", h.Scanner.UploadInput)
+			scannerGroup.POST("/scans/:id/reconstruction", h.Scanner.StartReconstruction)
+			scannerGroup.GET("/assets/:id/download", h.Scanner.DownloadAsset)
 		}
 
 		// ── Messaging (all roles) ─────────────────────────────────────────────

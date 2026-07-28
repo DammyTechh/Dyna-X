@@ -56,6 +56,7 @@ import (
 	therapayH "github.com/dynalimb/dynax-backend/internal/handlers/therapay"
 	"github.com/dynalimb/dynax-backend/internal/repository"
 	"github.com/dynalimb/dynax-backend/internal/repository/db"
+	"github.com/dynalimb/dynax-backend/internal/scanner"
 	"github.com/dynalimb/dynax-backend/internal/scheduler"
 	"github.com/dynalimb/dynax-backend/internal/server"
 	"github.com/dynalimb/dynax-backend/internal/services"
@@ -125,6 +126,7 @@ func main() {
 		AI:            aiH.NewHandler(svcAI),
 		Messaging:     msgH.NewHandler(svcMsg),
 		Studio:        studio.NewHandler(pool),
+		Scanner:       scanner.NewHandler(pool),
 	}
 
 	// ── Router ────────────────────────────────────────────────────────────────

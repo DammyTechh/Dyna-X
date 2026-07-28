@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Calendar, FileText, MessageSquare,
   Bell, Settings, LogOut, ChevronLeft, ChevronRight,
   CreditCard, Bot, Activity, Shield, Menu, X,
-  ClipboardList, Scan, Heart, UserCheck, CalendarClock,
+  ClipboardList, Scan, ScanLine, Heart, UserCheck, CalendarClock,
 } from 'lucide-react';
 import { tokenStore } from '@/lib/api';
 import { authService } from '@/lib/auth';
@@ -68,6 +68,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     ] : []),
     // 3D Editor — Prosthetists & Orthotists only
     ...(canAccessEditor(role) ? [
+      { label: '3D Scanner', href: '/dashboard/professional/scanner', icon: ScanLine },
       { label: '3D Editor', href: '/editor', icon: Scan },
     ] : []),
     // Patient routes
