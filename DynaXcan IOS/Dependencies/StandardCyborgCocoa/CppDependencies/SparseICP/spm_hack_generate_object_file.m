@@ -1,1 +1,0 @@
-static const int HACK_SPARSEICP_GENERATE_OBJECT_FILE = 1;

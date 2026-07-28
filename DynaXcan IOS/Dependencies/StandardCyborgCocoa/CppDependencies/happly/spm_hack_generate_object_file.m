@@ -1,1 +1,0 @@
-static const int HACK_HAPPLY_GENERATE_OBJECT_FILE = 1;
