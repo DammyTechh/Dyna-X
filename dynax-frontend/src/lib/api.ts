@@ -11,6 +11,12 @@ const REFRESH_KEY = 'dynax_refresh_token';
 const ROLE_KEY = 'dynax_role';
 const USER_ID_KEY = 'dynax_user_id';
 
+// Share auth cookies across *.dynax.app subdomains (www ↔ scanner) in production.
+function cookieDomain(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return window.location.hostname.endsWith('dynax.app') ? '.dynax.app' : undefined;
+}
+
 export const tokenStore = {
   getAccess: () => {
     if (typeof window === 'undefined') return null;
@@ -24,17 +30,22 @@ export const tokenStore = {
     localStorage.setItem(TOKEN_KEY, access);
     localStorage.setItem(REFRESH_KEY, refresh);
     localStorage.setItem(ROLE_KEY, role);
-    // also set in cookie for SSR
-    Cookies.set(TOKEN_KEY, access, { expires: 1, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' });
-    Cookies.set(ROLE_KEY, role, { expires: 7, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' });
+    // Share the session across *.dynax.app (www ↔ scanner) in production; stay
+    // host-only on localhost / vercel previews.
+    const domain = cookieDomain();
+    Cookies.set(TOKEN_KEY, access, { expires: 1, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', domain });
+    Cookies.set(ROLE_KEY, role, { expires: 7, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', domain });
   },
   clear: () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(ROLE_KEY);
     localStorage.removeItem(USER_ID_KEY);
+    const domain = cookieDomain();
     Cookies.remove(TOKEN_KEY);
     Cookies.remove(ROLE_KEY);
+    Cookies.remove(TOKEN_KEY, { domain });
+    Cookies.remove(ROLE_KEY, { domain });
   },
   getRole: () => {
     if (typeof window === 'undefined') return null;

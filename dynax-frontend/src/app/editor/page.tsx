@@ -226,7 +226,7 @@ function EditorInner() {
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {/* Take a scan (opens the DynaX Scanner) */}
           <Link
-            href="/dashboard/professional/scanner"
+            href="/scanner"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-teal-600 text-white hover:bg-teal-500 transition-colors"
           >
             <ScanLine className="w-3.5 h-3.5" />

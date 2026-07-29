@@ -30,7 +30,7 @@ const nextConfig = {
       {
         source: '/',
         has: [{ type: 'host', value: 'scanner.dynax.app' }],
-        destination: '/dashboard/professional/scanner',
+        destination: '/scanner',
       },
     ];
   },

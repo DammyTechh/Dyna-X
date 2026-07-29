@@ -68,7 +68,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     ] : []),
     // 3D Editor — Prosthetists & Orthotists only
     ...(canAccessEditor(role) ? [
-      { label: '3D Scanner', href: '/dashboard/professional/scanner', icon: ScanLine },
+      { label: '3D Scanner', href: '/scanner', icon: ScanLine },
       { label: '3D Editor', href: '/editor', icon: Scan },
     ] : []),
     // Patient routes
