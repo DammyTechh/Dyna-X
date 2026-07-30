@@ -76,7 +76,17 @@ QPushButton#NavigationButton {{
 QPushButton#NavigationButton:hover {{ background: {BLUE_PALE}; }}
 QPushButton#NavigationButton:disabled {{ color: #AEB8C2; background: #F3F5F7; }}
 QDialog {{ background: {BACKGROUND}; color: {TEXT}; }}
-QLineEdit {{ background: #FFFFFF; border: 1px solid {BORDER}; border-radius: 5px; padding: 7px; }}
+/* Explicit foreground for plain controls so they stay readable regardless of the
+   OS (dark-mode) palette — dialogs and message boxes rely on these. */
+QLabel {{ color: {TEXT}; background: transparent; }}
+QCheckBox {{ color: {TEXT}; }}
+QGroupBox {{ color: {TEXT}; }}
+QGroupBox::title {{ color: {TEXT}; subcontrol-origin: margin; left: 8px; padding: 0 3px; }}
+QMessageBox {{ background: {BACKGROUND}; }}
+QMessageBox QLabel {{ color: {TEXT}; }}
+QProgressDialog {{ background: {BACKGROUND}; }}
+QProgressDialog QLabel {{ color: {TEXT}; }}
+QLineEdit {{ background: #FFFFFF; border: 1px solid {BORDER}; border-radius: 5px; padding: 7px; color: {TEXT}; }}
 QFrame#UpdateBanner {{
     background: {AMBER_PALE}; border: 1px solid {AMBER_BORDER}; border-radius: 8px;
 }}

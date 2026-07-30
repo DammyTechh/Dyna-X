@@ -764,6 +764,14 @@ def run() -> int:
     app.setApplicationName("DynaX Studio")
     app.setApplicationVersion(".".join(map(str, bs.BUNDLED_ADDON_VERSION)))
     app.setWindowIcon(_window_icon())
+    # Force a light color scheme so the light theme stays readable even when
+    # Windows is in dark mode, and apply the stylesheet app-wide so EVERY dialog
+    # (Settings, Blender setup, message boxes) inherits it — not just the window.
+    try:
+        app.styleHints().setColorScheme(Qt.ColorScheme.Light)
+    except (AttributeError, TypeError):
+        pass
+    app.setStyleSheet(APP_STYLESHEET)
     window = MainWindow()
     window.show()
     return app.exec()
