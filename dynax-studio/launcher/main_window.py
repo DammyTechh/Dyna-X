@@ -8,16 +8,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QProcess, QProcessEnvironment, Qt, QTimer, QUrl
+from PySide6.QtCore import QProcess, QProcessEnvironment, Qt, QThread, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QGuiApplication, QIcon
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
     QFrame, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox,
-    QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
+    QProgressDialog, QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 from . import STUDIO_VERSION
 from . import blender_service as bs
+from . import blender_setup as bsetup
 from . import analytics_sync
 from . import addon_installer
 from . import update_checker
@@ -39,6 +40,32 @@ def _window_icon() -> QIcon:
         if path.is_file():
             return QIcon(str(path))
     return QIcon()
+
+
+class _BlenderDownloadWorker(QThread):
+    """Downloads a portable Blender off the UI thread. Progress is reported as a
+    0..100 percentage; cancellation is cooperative via requestInterruption()."""
+
+    progress = Signal(int)
+    done = Signal(str)
+    failed = Signal(str)
+
+    class _Cancelled(Exception):
+        pass
+
+    def run(self) -> None:  # noqa: D401
+        try:
+            def cb(fraction):
+                if self.isInterruptionRequested():
+                    raise _BlenderDownloadWorker._Cancelled()
+                self.progress.emit(int((fraction or 0) * 100))
+
+            exe = bsetup.download_and_extract(progress_cb=cb)
+            self.done.emit(str(exe))
+        except _BlenderDownloadWorker._Cancelled:
+            pass  # user cancelled — stay silent
+        except Exception as exc:  # noqa: BLE001
+            self.failed.emit(str(exc))
 
 
 class MainWindow(QMainWindow):
@@ -75,6 +102,8 @@ class MainWindow(QMainWindow):
         addon_installer.check_and_update_addon(
             bs.BUNDLED_ADDON_SOURCE, bs.user_resources_dir(), self.logger)
         self._navigate("home", record=False)
+        self._blender_setup_offered = False
+        self._blender_dl_worker = None
         self._refresh_blender()
         self._start_analytics_sync()
         self._center_window()
@@ -242,8 +271,13 @@ class MainWindow(QMainWindow):
             self.blender_info = None
             self.footer.set_ready(False)
             self._set_workflows_enabled(
-                False, "Blender not found - set it in Settings.")
-            self.status.setText("Blender not found. Open Settings to choose it.")
+                False, "Blender not found - set it up to start.")
+            self.status.setText("Blender not found. Set it up to get started.")
+            if not self._blender_setup_offered:
+                self._blender_setup_offered = True
+                # Deferred so it never blocks window construction or the headless
+                # --guicheck (which builds the window without an event loop).
+                QTimer.singleShot(0, self._offer_blender_setup)
             return
         info = bs.validate_blender(path)
         self.blender_info = info
@@ -277,6 +311,78 @@ class MainWindow(QMainWindow):
                 f"Blender {version} found; DynaX add-on is not installed")
             self._set_workflows_enabled(
                 False, "DynaX add-on not found in this Blender. Install it first.")
+
+    # ── Blender acquisition (when none is installed) ──────────────────────────
+    def _offer_blender_setup(self) -> None:
+        # A Blender may have appeared since the offer was queued.
+        if bs.discover_blender(self.settings) is not None:
+            self._refresh_blender()
+            return
+        box = QMessageBox(self)
+        box.setWindowTitle("Set up Blender")
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setText("DynaX Studio needs Blender to run its workflows.")
+        box.setInformativeText(
+            f"Blender {bsetup.RECOMMENDED_VERSION} isn't installed yet. DynaX Studio "
+            "can download it for you (no admin rights needed), or you can get it "
+            "from blender.org and set the path in Settings.")
+        auto = box.addButton("Download automatically", QMessageBox.ButtonRole.AcceptRole)
+        manual = box.addButton("Get it from blender.org", QMessageBox.ButtonRole.ActionRole)
+        box.addButton("Later", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is auto:
+            self._start_blender_download()
+        elif clicked is manual:
+            QDesktopServices.openUrl(QUrl(bsetup.DOWNLOAD_PAGE))
+
+    def _start_blender_download(self) -> None:
+        if self._blender_dl_worker is not None:
+            return
+        dlg = QProgressDialog("Downloading Blender…", "Cancel", 0, 100, self)
+        dlg.setWindowTitle("Setting up Blender")
+        dlg.setAutoClose(True)
+        dlg.setMinimumDuration(0)
+        dlg.setValue(0)
+        self._blender_dl_dialog = dlg
+
+        worker = _BlenderDownloadWorker(self)
+        self._blender_dl_worker = worker
+        worker.progress.connect(self._on_blender_dl_progress)
+        worker.done.connect(self._on_blender_dl_done)
+        worker.failed.connect(self._on_blender_dl_failed)
+        dlg.canceled.connect(worker.requestInterruption)
+        worker.start()
+        dlg.show()
+
+    def _on_blender_dl_progress(self, pct: int) -> None:
+        if getattr(self, "_blender_dl_dialog", None) is not None:
+            self._blender_dl_dialog.setValue(max(0, min(100, pct)))
+
+    def _on_blender_dl_done(self, path: str) -> None:
+        self._cleanup_blender_worker()
+        self.settings.blender_path = path
+        self.settings.save(self.logger)
+        self.status.setText("Blender installed. Getting ready…")
+        self._refresh_blender()
+
+    def _on_blender_dl_failed(self, message: str) -> None:
+        self._cleanup_blender_worker()
+        QMessageBox.warning(
+            self, "Blender setup failed",
+            "Couldn't download Blender automatically:\n\n" + message +
+            "\n\nYou can install it manually from blender.org instead.")
+        QDesktopServices.openUrl(QUrl(bsetup.DOWNLOAD_PAGE))
+
+    def _cleanup_blender_worker(self) -> None:
+        dlg = getattr(self, "_blender_dl_dialog", None)
+        if dlg is not None:
+            dlg.close()
+            self._blender_dl_dialog = None
+        worker = self._blender_dl_worker
+        if worker is not None:
+            worker.wait(100)
+            self._blender_dl_worker = None
 
     def _set_workflows_enabled(self, enabled: bool, reason: str) -> None:
         # TLSO is now a real workflow (parafly_tlso -> PARAFORGE_ZONES/TLSO), so

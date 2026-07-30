@@ -28,7 +28,7 @@ RECENT_PROJECTS_MAX = 10
 # the clinic its per-installation ingestion token.
 DEFAULT_BACKEND_URL = os.environ.get(
     "DYNAX_DEFAULT_BACKEND_URL",
-    "https://analytics.dynalimb.com",  # replace with the real URL after VPS setup
+    "https://api.dynax.app",  # DynaX single backend (analytics + release manifest)
 )
 
 

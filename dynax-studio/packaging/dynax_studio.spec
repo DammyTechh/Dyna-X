@@ -16,9 +16,16 @@ ROOT = os.path.abspath(os.path.join(SPECPATH, os.pardir))   # dynax_studio/
 
 datas = [
     (os.path.join(ROOT, "scripts"), "scripts"),
-    (os.path.join(ROOT, "templates"), "templates"),
     (os.path.join(ROOT, "assets"), "assets"),
 ]
+
+# The Blender application template ships in the full Studio project. It is bundled
+# automatically when present; a launcher-only build (to test the UI, update banner
+# and analytics) succeeds without it, but launching the Blender workspace requires
+# it to be added under dynax-studio/templates/.
+_templates = os.path.join(ROOT, "templates")
+if os.path.isdir(_templates):
+    datas.append((_templates, "templates"))
 
 # Trim clearly-unused heavy Qt modules to keep the build lean (we only use
 # QtCore/QtGui/QtWidgets). Excluding the Python submodules stops the PySide6
