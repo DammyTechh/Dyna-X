@@ -6,6 +6,7 @@ package scheduler
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/dynalimb/dynax-backend/internal/repository"
@@ -57,6 +58,7 @@ func (s *Scheduler) RunOnce(ctx context.Context) {
 		{"followup_reminders", s.followUpReminders},
 		{"therapay_reminders", s.therapayReminders},
 		{"missed_messages", s.missedMessages},
+		{"rehab_credit_escalation", s.rehabCreditEscalation},
 	}
 	for _, j := range jobs {
 		n, err := j.fn(ctx)
@@ -179,6 +181,70 @@ func (s *Scheduler) therapayReminders(ctx context.Context) (int, error) {
 		_, _ = s.pool.Exec(ctx, `UPDATE public.therapay_plans SET reminder_sent_at = NOW() WHERE id = $1`, it.id)
 	}
 	return len(items), nil
+}
+
+// rehabCreditEscalation nudges admin about Rehab Credit repayment checks whose
+// due date has passed while still marked 'upcoming'.
+//
+// This job is deliberately informational. Mediloan is the lender and has no
+// API, so an overdue due date only means "nobody has looked yet" — it is NOT
+// evidence the patient missed a payment. The job therefore never marks a check
+// missed, never touches a plan's status, and never advances the escalation
+// ladder; it only tells admin to go read Mediloan's report and mark the checks
+// accordingly. Idempotent: each check is only ever nudged once.
+func (s *Scheduler) rehabCreditEscalation(ctx context.Context) (int, error) {
+	var overdue int
+	err := s.pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		  FROM public.rehab_repayment_checks c
+		  JOIN public.rehab_credit_plans p ON p.id = c.plan_id
+		 WHERE c.status = 'upcoming'
+		   AND c.due_date < CURRENT_DATE
+		   AND c.overdue_notified_at IS NULL
+		   AND p.status IN ('active','suspended')`).Scan(&overdue)
+	if err != nil {
+		return 0, err
+	}
+	if overdue == 0 {
+		return 0, nil
+	}
+
+	admins, err := s.pool.Query(ctx,
+		`SELECT id FROM public.dynax_users WHERE role = 'admin' AND is_active = TRUE`)
+	if err != nil {
+		return 0, err
+	}
+	var adminIDs []string
+	for admins.Next() {
+		var id string
+		if err := admins.Scan(&id); err != nil {
+			admins.Close()
+			return 0, err
+		}
+		adminIDs = append(adminIDs, id)
+	}
+	admins.Close()
+
+	count := strconv.Itoa(overdue)
+	for _, id := range adminIDs {
+		_ = s.notif.Create(ctx, id, "rehab_credit_update", "Rehab Credit repayments need review",
+			count+" repayment checks are now overdue for review. Check Mediloan's report and mark each one on time or missed.",
+			map[string]string{"overdue_count": count})
+	}
+
+	// Mark the batch nudged so the same checks don't re-notify next cycle.
+	if _, err := s.pool.Exec(ctx, `
+		UPDATE public.rehab_repayment_checks c
+		   SET overdue_notified_at = NOW()
+		  FROM public.rehab_credit_plans p
+		 WHERE p.id = c.plan_id
+		   AND c.status = 'upcoming'
+		   AND c.due_date < CURRENT_DATE
+		   AND c.overdue_notified_at IS NULL
+		   AND p.status IN ('active','suspended')`); err != nil {
+		return 0, err
+	}
+	return overdue, nil
 }
 
 // missedMessages emails users who have unread messages older than an hour.

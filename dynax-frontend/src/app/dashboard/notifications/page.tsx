@@ -1,9 +1,10 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useNotifications, useMarkAllRead } from '@/hooks/useApi';
 import { apiPost } from '@/lib/api';
-import { Bell, BellOff, Loader2, Check, Calendar, CreditCard, MessageSquare, UserCheck, Activity } from 'lucide-react';
+import { Bell, BellOff, Loader2, Check, Calendar, CreditCard, MessageSquare, UserCheck, Activity, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -34,10 +35,53 @@ const NOTIF_COLORS: Record<string, string> = {
   general: 'bg-slate-50 text-slate-600',
 };
 
+// Where a notification should take you. Returns null for types with no
+// meaningful destination — those rows stay non-interactive.
+const getNotificationAction = (notif: Notification): string | null => {
+  const data = notif.data || {};
+  switch (notif.type) {
+    case 'message_received':
+      return data.conversation_id
+        ? `/dashboard/messages?conversation=${String(data.conversation_id)}`
+        : '/dashboard/messages';
+    case 'appointment_reminder':
+    case 'appointment_cancelled':
+      return data.role === 'patient'
+        ? '/dashboard/patient/appointments'
+        : '/dashboard/professional/appointments';
+    case 'payment_due':
+      return '/dashboard/patient/payments';
+    case 'payment_received':
+      return '/dashboard/professional/therapay';
+    case 'professional_approved':
+      return '/dashboard/professional';
+    case 'patient_connected':
+      return '/dashboard/professional/patients';
+    case 'session_logged':
+      return data.role === 'patient'
+        ? '/dashboard/patient/sessions'
+        : '/dashboard/professional/sessions';
+    default:
+      return null;
+  }
+};
+
+const ACTION_LABELS: Record<string, string> = {
+  message_received: 'View message',
+  appointment_reminder: 'View appointment',
+  appointment_cancelled: 'View appointment',
+  payment_due: 'View payment',
+  payment_received: 'View payment',
+  patient_connected: 'View patient',
+  session_logged: 'View session',
+  professional_approved: 'Go to dashboard',
+};
+
 export default function NotificationsPage() {
   const { data, isLoading, refetch } = useNotifications({ page: 1, page_size: 50 });
   const { mutateAsync: markAll, isPending: marking } = useMarkAllRead();
   const qc = useQueryClient();
+  const router = useRouter();
 
   const notifications = data?.data || [];
   const unread = notifications.filter((n: Notification) => !n.is_read);
@@ -92,12 +136,35 @@ export default function NotificationsPage() {
               {notifications.map((notif: Notification) => {
                 const Icon = NOTIF_ICONS[notif.type] || Bell;
                 const colorClass = NOTIF_COLORS[notif.type] || 'bg-slate-50 text-slate-600';
+                const actionUrl = getNotificationAction(notif);
+                const actionLabel = ACTION_LABELS[notif.type];
+
+                const openAction = () => {
+                  if (!actionUrl) return;
+                  if (!notif.is_read) handleMarkOne(notif.id);
+                  router.push(actionUrl);
+                };
+
                 return (
                   <div
                     key={notif.id}
+                    onClick={actionUrl ? openAction : undefined}
+                    onKeyDown={
+                      actionUrl
+                        ? (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              openAction();
+                            }
+                          }
+                        : undefined
+                    }
+                    role={actionUrl ? 'button' : undefined}
+                    tabIndex={actionUrl ? 0 : undefined}
                     className={cn(
                       'flex items-start gap-4 px-6 py-4 transition-colors',
-                      !notif.is_read ? 'bg-blue-50/40' : 'hover:bg-slate-50'
+                      !notif.is_read ? 'bg-blue-50/40' : 'hover:bg-slate-50',
+                      actionUrl && 'cursor-pointer hover:bg-slate-50'
                     )}
                   >
                     <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5', colorClass)}>
@@ -114,13 +181,25 @@ export default function NotificationsPage() {
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{notif.body}</p>
                     </div>
-                    {!notif.is_read && (
-                      <button
-                        onClick={() => handleMarkOne(notif.id)}
-                        className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-2 hover:bg-blue-600 transition-colors"
-                        title="Mark as read"
-                      />
-                    )}
+                    {/* Unread dot sits to the left of the action button. */}
+                    <div className="flex items-center gap-3 flex-shrink-0 mt-1.5">
+                      {!notif.is_read && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // marking read must not navigate
+                            handleMarkOne(notif.id);
+                          }}
+                          className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 hover:bg-blue-600 transition-colors"
+                          title="Mark as read"
+                        />
+                      )}
+                      {actionUrl && actionLabel && (
+                        <span className="flex items-center gap-1 text-xs font-medium text-teal-600 whitespace-nowrap">
+                          {actionLabel}
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })}

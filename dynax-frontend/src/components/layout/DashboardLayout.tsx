@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Calendar, FileText, MessageSquare,
   Bell, Settings, LogOut, ChevronLeft, ChevronRight,
   CreditCard, Bot, Activity, Shield, Menu, X,
-  ClipboardList, Scan, ScanLine, Heart, UserCheck, CalendarClock,
+  ClipboardList, Scan, ScanLine, Heart, UserCheck, CalendarClock, HandCoins,
 } from 'lucide-react';
 import { tokenStore } from '@/lib/api';
 import { authService } from '@/lib/auth';
@@ -23,6 +23,8 @@ interface NavItem {
   icon: React.ElementType;
   roles?: string[];
   badge?: number;
+  /** data-tour hook so WalkthroughTour can highlight this item. */
+  tour?: string;
 }
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -54,31 +56,36 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { label: 'Dashboard', href: getDashboardRoute(role), icon: LayoutDashboard },
     // Professional routes
     ...(!isPatient && !isAdmin ? [
-      { label: 'My Patients', href: '/dashboard/professional/patients', icon: Users },
-      { label: 'Appointments', href: '/dashboard/professional/appointments', icon: Calendar },
+      { label: 'My Patients', href: '/dashboard/professional/patients', icon: Users, tour: 'nav-patients' },
+      { label: 'Appointments', href: '/dashboard/professional/appointments', icon: Calendar, tour: 'nav-appointments' },
       { label: 'Sessions', href: '/dashboard/professional/sessions', icon: Activity },
-      { label: 'Clinical Notes', href: '/dashboard/professional/notes', icon: ClipboardList },
+      { label: 'Clinical Notes', href: '/dashboard/professional/notes', icon: ClipboardList, tour: 'nav-notes' },
       { label: 'Patient Records', href: '/dashboard/professional/records', icon: FileText },
       { label: 'Care Plans', href: '/dashboard/professional/care-plans', icon: Heart },
       { label: 'Follow-ups', href: '/dashboard/professional/follow-ups', icon: CalendarClock },
     ] : []),
     // TheraPay — physiotherapists only (financing applies to physio + patients)
     ...(role === 'physiotherapist' ? [
-      { label: 'TheraPay', href: '/dashboard/professional/therapay', icon: CreditCard },
+      { label: 'TheraPay', href: '/dashboard/professional/therapay', icon: CreditCard, tour: 'nav-therapay' },
+    ] : []),
+    // Rehab Credit — any professional can be assigned to a Mediloan-backed plan
+    ...(!isPatient && !isAdmin ? [
+      { label: 'Rehab Credit', href: '/dashboard/professional/rehab-credit', icon: HandCoins, tour: 'nav-rehab-credit' },
     ] : []),
     // 3D Editor — Prosthetists & Orthotists only
     ...(canAccessEditor(role) ? [
-      { label: '3D Scanner', href: '/scanner', icon: ScanLine },
+      { label: '3D Scanner', href: '/scanner', icon: ScanLine, tour: 'nav-scanner' },
       { label: '3D Editor', href: '/editor', icon: Scan },
     ] : []),
     // Patient routes
     ...(isPatient ? [
-      { label: 'My Professionals', href: '/dashboard/patient/professionals', icon: UserCheck },
-      { label: 'Appointments', href: '/dashboard/patient/appointments', icon: Calendar },
+      { label: 'My Professionals', href: '/dashboard/patient/professionals', icon: UserCheck, tour: 'nav-professionals' },
+      { label: 'Appointments', href: '/dashboard/patient/appointments', icon: Calendar, tour: 'nav-appointments' },
       { label: 'Sessions', href: '/dashboard/patient/sessions', icon: Activity },
-      { label: 'Care Plans', href: '/dashboard/patient/care-plans', icon: Heart },
+      { label: 'Care Plans', href: '/dashboard/patient/care-plans', icon: Heart, tour: 'nav-care-plans' },
       { label: 'Check-ins', href: '/dashboard/patient/follow-ups', icon: CalendarClock },
-      { label: 'Payments', href: '/dashboard/patient/payments', icon: CreditCard },
+      { label: 'Payments', href: '/dashboard/patient/payments', icon: CreditCard, tour: 'nav-payments' },
+      { label: 'Rehab Credit', href: '/dashboard/patient/rehab-credit', icon: HandCoins, tour: 'nav-rehab-credit' },
     ] : []),
     // Admin routes
     ...(isAdmin ? [
@@ -90,7 +97,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       { label: 'Audit Logs', href: '/dashboard/admin/audit', icon: Shield },
     ] : []),
     // Shared
-    { label: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
+    { label: 'Messages', href: '/dashboard/messages', icon: MessageSquare, tour: 'nav-messages' },
     { label: 'AI Assistant', href: '/dashboard/ai', icon: Bot },
     { label: 'Notifications', href: '/dashboard/notifications', icon: Bell, badge: unread },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
@@ -143,6 +150,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
+              data-tour={item.tour}
               onClick={() => setMobileOpen(false)}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all relative',

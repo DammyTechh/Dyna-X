@@ -240,6 +240,88 @@ export interface TheraPay {
   updated_at: string;
 }
 
+// ─── Rehab Credit (Mediloan-backed financing) ─────────────────────────────────
+// Mediloan is a third-party lender. DynaX tracks session confirmations and what
+// an admin records from Mediloan's report — it never collects repayment.
+
+export type RehabCreditStatus = 'pending_admin' | 'active' | 'suspended' | 'completed' | 'rejected';
+export type RehabReleaseStatus = 'pending' | 'both_confirmed' | 'payout_pending' | 'paid' | 'disputed';
+export type RehabRepaymentStatus = 'upcoming' | 'on_time' | 'missed';
+
+export interface RehabCreditPlan {
+  id: string;
+  patient_id: string;
+  physio_id?: string;
+  total_credit_amount: number;
+  session_rate: number;
+  sessions_total: number;
+  sessions_released: number;
+  duration_months: number;
+  /** Admin-only — omitted from patient and physio responses. */
+  mediloan_ref?: string;
+  status: RehabCreditStatus;
+  consecutive_missed_payments: number;
+  escalation_notified_at_count: number;
+  /** Admin-only — omitted from patient and physio responses. */
+  review_notes?: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Joined display names. Populated by the read endpoints (list + detail) but
+   * absent on older backends, so callers must still fall back to a local lookup.
+   */
+  patient_name?: string;
+  physio_name?: string;
+}
+
+export interface RehabSessionRelease {
+  id: string;
+  plan_id: string;
+  appointment_id?: string;
+  amount: number;
+  patient_confirmed_at?: string;
+  physio_confirmed_at?: string;
+  status: RehabReleaseStatus;
+  admin_marked_paid_at?: string;
+  admin_marked_paid_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RehabRepaymentCheck {
+  id: string;
+  plan_id: string;
+  period_label: string;
+  due_date: string;
+  status: RehabRepaymentStatus;
+  marked_by?: string;
+  marked_at?: string;
+  created_at: string;
+}
+
+/** Shape returned by GET /rehab-credit/plans/:plan_id */
+export interface RehabCreditPlanDetail {
+  plan: RehabCreditPlan;
+  releases: RehabSessionRelease[];
+  repayment_checks: RehabRepaymentCheck[];
+  lender: string;
+}
+
+/** Shape returned by GET /admin/rehab-credit/payouts/pending */
+export interface RehabPendingPayout {
+  release_id: string;
+  plan_id: string;
+  amount: number;
+  patient_id: string;
+  patient_name: string;
+  physio_id?: string;
+  physio_name: string;
+  mediloan_ref?: string;
+  confirmed_at: string;
+}
+
 // ─── Messaging ────────────────────────────────────────────────────────────────
 
 export interface Conversation {

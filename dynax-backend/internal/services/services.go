@@ -286,6 +286,7 @@ type ProfessionalService struct {
 	sessions *repository.SessionRepository
 	conns    *repository.ConnectionRepository
 	notif    *repository.NotificationRepository
+	rehab    *RehabCreditService
 	mailer   *email.Client
 }
 
@@ -297,9 +298,10 @@ func NewProfessionalService(
 	sessions *repository.SessionRepository,
 	conns *repository.ConnectionRepository,
 	notif *repository.NotificationRepository,
+	rehab *RehabCreditService,
 	mailer *email.Client,
 ) *ProfessionalService {
-	return &ProfessionalService{cfg: cfg, users: users, profs: profs, appts: appts, sessions: sessions, conns: conns, notif: notif, mailer: mailer}
+	return &ProfessionalService{cfg: cfg, users: users, profs: profs, appts: appts, sessions: sessions, conns: conns, notif: notif, rehab: rehab, mailer: mailer}
 }
 
 func (s *ProfessionalService) GetProfile(userID string) (*models.ProfessionalProfile, error) {
@@ -501,7 +503,28 @@ func (s *ProfessionalService) CreateSession(userID string, req *models.CreateSes
 		AssessmentNote:   nilIfEmpty(req.AssessmentNote),
 		PlanNote:         nilIfEmpty(req.PlanNote),
 	}
-	return s.sessions.Create(ctx, sess)
+	created, err := s.sessions.Create(ctx, sess)
+	if err != nil {
+		return nil, err
+	}
+
+	// If this patient/physio pair has an active Rehab Credit plan, open a
+	// session release against it. Most sessions are not financed, so no match
+	// is the normal case and nothing extra happens.
+	//
+	// A failure here must not fail the session: the clinical record is the
+	// primary artefact and is already written. Log and move on — an admin can
+	// still see the session, and no payout is silently created either way.
+	if s.rehab != nil {
+		if _, rerr := s.rehab.LinkSessionToCredit(ctx, created.PatientID, userID, req.AppointmentID); rerr != nil {
+			logger.Get().Error().Err(rerr).
+				Str("session_id", created.ID).
+				Str("patient_id", created.PatientID).
+				Str("physio_id", userID).
+				Msg("rehab credit session release failed; session was still logged")
+		}
+	}
+	return created, nil
 }
 
 func (s *ProfessionalService) GetSession(userID, sessionID string) (*models.TherapySession, error) {
@@ -1138,6 +1161,12 @@ func (s *NotificationService) UpdatePreferences(userID string, prefs map[string]
 }
 func (s *NotificationService) SaveSubscription(userID, endpoint, p256dh, auth string) error {
 	return s.notif.SaveSubscription(context.Background(), userID, endpoint, p256dh, auth)
+}
+
+// CreateNotification stores an in-app notification for a user. Creating it also
+// fires repository.OnNotify, which delivers the matching web push.
+func (s *NotificationService) CreateNotification(userID, ntype, title, body string, data interface{}) error {
+	return s.notif.Create(context.Background(), userID, ntype, title, body, data)
 }
 
 func (s *NotificationService) GetPreferences(userID string) (map[string]interface{}, error) {

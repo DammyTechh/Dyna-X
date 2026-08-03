@@ -19,7 +19,7 @@ interface LogoProps {
 
 /**
  * DynaX brand logo.
- * Renders /images/logo.png if present; otherwise falls back to a crisp
+ * Renders /images/dynax-logo.png if present; otherwise falls back to a crisp
  * built-in SVG monogram so the brand never appears broken.
  */
 export function Logo({

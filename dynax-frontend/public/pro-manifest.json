@@ -1,0 +1,15 @@
+{
+  "id": "https://pro.dynax.app/",
+  "name": "DynaX Pro",
+  "short_name": "DynaX Pro",
+  "description": "Professional P&O clinical workspace.",
+  "start_url": "https://pro.dynax.app/",
+  "scope": "https://pro.dynax.app/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    { "src": "/icons/pro-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/pro-icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

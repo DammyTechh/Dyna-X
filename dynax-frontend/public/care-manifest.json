@@ -1,0 +1,15 @@
+{
+  "id": "https://care.dynax.app/",
+  "name": "DynaX Care",
+  "short_name": "DynaX Care",
+  "description": "Your personal rehabilitation and care portal.",
+  "start_url": "https://care.dynax.app/",
+  "scope": "https://care.dynax.app/",
+  "display": "standalone",
+  "background_color": "#EFF6FF",
+  "theme_color": "#2563EB",
+  "icons": [
+    { "src": "/icons/care-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/care-icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

@@ -3,16 +3,23 @@ import { Inter } from 'next/font/google';
 import '@/styles/globals.css';
 import { Providers } from '@/components/layout/Providers';
 import TopProgress from '@/components/layout/TopProgress';
+import AuthInitializer from '@/components/layout/AuthInitializer';
+import ServiceWorkerRegistrar from '@/components/layout/ServiceWorkerRegistrar';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 export const metadata: Metadata = {
   title: { default: 'DynaX — Rehabilitation & Prosthetic Care', template: '%s | DynaX' },
   description: 'Advanced rehabilitation and prosthetic care platform connecting patients, professionals, and clinics.',
-  manifest: '/manifest.json',
+  // Deliberately no `manifest` here — dynax.app is the marketing site and must
+  // not be installable. Each product layout declares its own manifest so the
+  // installed app is DynaX Pro / Care / Physio / DynaXcan, never plain "DynaX".
   icons: {
-    icon: '/icons/dynax-logo-192.png',
-    apple: '/icons/dynax-logo-512.png',
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
   },
   openGraph: {
     type: 'website',
@@ -43,6 +50,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <TopProgress />
+        <AuthInitializer />
+        <ServiceWorkerRegistrar />
         <Providers>{children}</Providers>
       </body>
     </html>

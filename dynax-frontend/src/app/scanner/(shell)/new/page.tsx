@@ -134,6 +134,7 @@ export default function NewScanPage() {
               </div>
             ) : (
               <div
+                data-tour="scan-upload"
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={(e) => { e.preventDefault(); setDragOver(false); pick(e.dataTransfer.files?.[0] ?? null); }}

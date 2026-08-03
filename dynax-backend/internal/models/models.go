@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -565,6 +566,132 @@ type AssignProfessionalRequest struct {
 type ApproveProfessionalRequest struct {
 	IsApproved bool   `json:"is_approved" validate:"required"`
 	Notes      string `json:"notes,omitempty"`
+}
+
+// ─── Rehab Credit (Mediloan-backed financing) ─────────────────────────────────
+//
+// Mediloan is a third-party lender. DynaX is not the lender: it tracks session
+// confirmations and records what an admin reports from Mediloan. No status here
+// changes automatically.
+
+type RehabCreditPlan struct {
+	ID                        string     `json:"id" db:"id"`
+	PatientID                 string     `json:"patient_id" db:"patient_id"`
+	PhysioID                  *string    `json:"physio_id,omitempty" db:"physio_id"`
+	TotalCreditAmount         float64    `json:"total_credit_amount" db:"total_credit_amount"`
+	SessionRate               float64    `json:"session_rate" db:"session_rate"`
+	SessionsTotal             int        `json:"sessions_total" db:"sessions_total"`
+	SessionsReleased          int        `json:"sessions_released" db:"sessions_released"`
+	DurationMonths            int        `json:"duration_months" db:"duration_months"`
+	MediloanRef               *string    `json:"mediloan_ref,omitempty" db:"mediloan_ref"`
+	Status                    string     `json:"status" db:"status"` // pending_admin | active | suspended | completed | rejected
+	ConsecutiveMissedPayments int        `json:"consecutive_missed_payments" db:"consecutive_missed_payments"`
+	EscalationNotifiedAtCount int        `json:"escalation_notified_at_count" db:"escalation_notified_at_count"`
+	ReviewNotes               *string    `json:"review_notes,omitempty" db:"review_notes"`
+	ReviewedBy                *string    `json:"reviewed_by,omitempty" db:"reviewed_by"`
+	ReviewedAt                *time.Time `json:"reviewed_at,omitempty" db:"reviewed_at"`
+	CreatedAt                 time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt                 time.Time  `json:"updated_at" db:"updated_at"`
+
+	// Joined from the profile tables for display — not columns on
+	// rehab_credit_plans, so they are only populated by the read queries
+	// (GetPlan, ListPlansForUser), never by an INSERT/UPDATE ... RETURNING.
+	PatientName string `json:"patient_name,omitempty"`
+	PhysioName  string `json:"physio_name,omitempty"`
+}
+
+type RehabSessionRelease struct {
+	ID                 string     `json:"id" db:"id"`
+	PlanID             string     `json:"plan_id" db:"plan_id"`
+	AppointmentID      *string    `json:"appointment_id,omitempty" db:"appointment_id"`
+	Amount             float64    `json:"amount" db:"amount"`
+	PatientConfirmedAt *time.Time `json:"patient_confirmed_at,omitempty" db:"patient_confirmed_at"`
+	PhysioConfirmedAt  *time.Time `json:"physio_confirmed_at,omitempty" db:"physio_confirmed_at"`
+	Status             string     `json:"status" db:"status"` // pending | both_confirmed | payout_pending | paid | disputed
+	AdminMarkedPaidAt  *time.Time `json:"admin_marked_paid_at,omitempty" db:"admin_marked_paid_at"`
+	AdminMarkedPaidBy  *string    `json:"admin_marked_paid_by,omitempty" db:"admin_marked_paid_by"`
+	CreatedAt          time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+type RehabRepaymentCheck struct {
+	ID          string     `json:"id" db:"id"`
+	PlanID      string     `json:"plan_id" db:"plan_id"`
+	PeriodLabel string     `json:"period_label" db:"period_label"`
+	DueDate     string     `json:"due_date" db:"due_date"`
+	Status      string     `json:"status" db:"status"` // upcoming | on_time | missed
+	MarkedBy    *string    `json:"marked_by,omitempty" db:"marked_by"`
+	MarkedAt    *time.Time `json:"marked_at,omitempty" db:"marked_at"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+}
+
+// PendingPayout is one both-sides-confirmed session release, carrying the names
+// an admin needs to action it rather than raw UUIDs.
+type PendingPayout struct {
+	ReleaseID   string  `json:"release_id"`
+	PlanID      string  `json:"plan_id"`
+	Amount      float64 `json:"amount"`
+	PatientID   string  `json:"patient_id"`
+	PatientName string  `json:"patient_name"`
+	PhysioID    *string `json:"physio_id,omitempty"`
+	PhysioName  string  `json:"physio_name"`
+	MediloanRef *string `json:"mediloan_ref,omitempty"`
+	ConfirmedAt string  `json:"confirmed_at"`
+}
+
+// Rehab Credit sentinel errors. These are the shared vocabulary between the
+// service layer and the handlers: the service translates its repository's
+// internal errors into these, so handlers map outcomes to HTTP status codes
+// without importing the repository package.
+var (
+	ErrPlanNotFound      = errors.New("plan_not_found")
+	ErrPlanNotPending    = errors.New("plan_already_reviewed")
+	ErrPlanSuspended     = errors.New("plan_suspended")
+	ErrPlanNotActive     = errors.New("plan_not_active")
+	ErrReleaseNotFound   = errors.New("release_not_found")
+	ErrReleaseNotOpen    = errors.New("release_not_open_for_confirmation")
+	ErrReleaseNotPayable = errors.New("release_not_payable")
+	ErrNotOnThisPlan     = errors.New("not_a_party_to_this_plan")
+	ErrCheckNotFound     = errors.New("repayment_check_not_found")
+)
+
+// CreateRehabCreditApplicationRequest is submitted by a PATIENT. Only the
+// requested amount is theirs to set — the physio, rate, session count and term
+// are decided by admin at approval time.
+type CreateRehabCreditApplicationRequest struct {
+	TotalCreditAmount float64 `json:"total_credit_amount" validate:"required,gt=0"`
+	Reason            string  `json:"reason,omitempty"`
+}
+
+// ReviewRehabCreditPlanRequest is sent by an ADMIN to approve or reject a
+// pending plan. On approval every field below except Notes is required.
+type ReviewRehabCreditPlanRequest struct {
+	Decision       string  `json:"decision" validate:"required,oneof=approve reject"`
+	PhysioID       string  `json:"physio_id,omitempty" validate:"omitempty,uuid"`
+	SessionRate    float64 `json:"session_rate,omitempty"`
+	SessionsTotal  int     `json:"sessions_total,omitempty"`
+	DurationMonths int     `json:"duration_months,omitempty"`
+	MediloanRef    string  `json:"mediloan_ref,omitempty"`
+	Notes          string  `json:"notes,omitempty"`
+}
+
+// MarkSessionPaidRequest is sent by an ADMIN after Mediloan has actually paid
+// out for a confirmed session. The release ID comes from the URL.
+type MarkSessionPaidRequest struct {
+	Notes string `json:"notes,omitempty"`
+}
+
+// MarkRepaymentStatusRequest is sent by an ADMIN recording what Mediloan
+// reported for one installment period. The check ID comes from the URL.
+type MarkRepaymentStatusRequest struct {
+	Status string `json:"status" validate:"required,oneof=on_time missed"`
+}
+
+// ConfirmSessionRequest is sent by a PATIENT or PHYSIO confirming a session
+// took place. Everything needed is in the URL; the body is reserved for an
+// optional note.
+type ConfirmSessionRequest struct {
+	Note string `json:"note,omitempty"`
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────

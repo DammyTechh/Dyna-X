@@ -48,10 +48,12 @@ import (
 	adminH "github.com/dynalimb/dynax-backend/internal/handlers/admin"
 	aiH "github.com/dynalimb/dynax-backend/internal/handlers/ai"
 	authH "github.com/dynalimb/dynax-backend/internal/handlers/auth"
+	callsH "github.com/dynalimb/dynax-backend/internal/handlers/calls"
 	emrH "github.com/dynalimb/dynax-backend/internal/handlers/emr"
 	notifH "github.com/dynalimb/dynax-backend/internal/handlers/notifications"
 	patientH "github.com/dynalimb/dynax-backend/internal/handlers/patient"
 	profH "github.com/dynalimb/dynax-backend/internal/handlers/professional"
+	rehabH "github.com/dynalimb/dynax-backend/internal/handlers/rehabcredit"
 	msgH "github.com/dynalimb/dynax-backend/internal/handlers/sessions"
 	therapayH "github.com/dynalimb/dynax-backend/internal/handlers/therapay"
 	"github.com/dynalimb/dynax-backend/internal/repository"
@@ -61,6 +63,7 @@ import (
 	"github.com/dynalimb/dynax-backend/internal/server"
 	"github.com/dynalimb/dynax-backend/internal/services"
 	"github.com/dynalimb/dynax-backend/internal/services/email"
+	"github.com/dynalimb/dynax-backend/internal/services/push"
 	"github.com/dynalimb/dynax-backend/internal/studio"
 	"github.com/dynalimb/dynax-backend/pkg/logger"
 )
@@ -101,11 +104,28 @@ func main() {
 	adminRepo := repository.NewAdminRepository(pool)
 	msgRepo := repository.NewMessagingRepository(pool)
 	notifRepo := repository.NewNotificationRepository(pool)
+	rehabRepo := repository.NewRehabCreditRepository(pool)
 	mailer := email.New(cfg)
+
+	// ── Web push ──────────────────────────────────────────────────────────────
+	// Every notification created through notifRepo.Create fires OnNotify, which
+	// delivers the same event as a browser push to the user's subscribed devices.
+	pushSender := push.NewSender(notifRepo)
+	if pushSender.IsConfigured() {
+		repository.OnNotify = func(userID, ntype, title, body string, data interface{}) {
+			pushSender.SendToUser(userID, title, body, push.Flatten(ntype, data))
+		}
+		log.Info().Msg("web push sender active")
+	} else {
+		log.Warn().Msg("VAPID keys not set — web push disabled")
+	}
 
 	// ── Services ──────────────────────────────────────────────────────────────
 	svcAuth := services.NewAuthService(cfg, jwtMgr, userRepo, profRepo, tokenRepo, mailer)
-	svcProf := services.NewProfessionalService(cfg, userRepo, profRepo, apptRepo, sessionRepo, connRepo, notifRepo, mailer)
+	// Built before the professional service, which calls into it when a session
+	// is logged against an active Rehab Credit plan.
+	svcRehab := services.NewRehabCreditService(cfg, rehabRepo, notifRepo)
+	svcProf := services.NewProfessionalService(cfg, userRepo, profRepo, apptRepo, sessionRepo, connRepo, notifRepo, svcRehab, mailer)
 	svcPatient := services.NewPatientService(cfg, userRepo, profRepo, apptRepo, sessionRepo, connRepo, emrRepo, notifRepo, mailer)
 	svcEMR := services.NewEMRService(cfg, emrRepo, userRepo, notifRepo)
 	svcTheraPay := services.NewTherapayService(cfg, billingRepo, notifRepo)
@@ -125,6 +145,8 @@ func main() {
 		Notifications: notifH.NewHandler(svcNotif),
 		AI:            aiH.NewHandler(svcAI),
 		Messaging:     msgH.NewHandler(svcMsg),
+		Calls:         callsH.NewHandler(svcNotif),
+		RehabCredit:   rehabH.NewHandler(svcRehab),
 		Studio:        studio.NewHandler(pool),
 		Scanner:       scanner.NewHandler(pool),
 	}

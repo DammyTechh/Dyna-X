@@ -7,22 +7,37 @@ import { ScanLine, LogOut, ExternalLink } from 'lucide-react';
 import { tokenStore } from '@/lib/api';
 import { authService } from '@/lib/auth';
 import { getDashboardRoute } from '@/lib/routing';
+import { useAuthStore } from '@/store/auth';
+import InstallButton from '@/components/pwa/InstallButton';
+import InstallBanner from '@/components/pwa/InstallBanner';
+import WalkthroughTour from '@/components/onboarding/WalkthroughTour';
 
 // Standalone product shell for the DynaX Scanner (scanner.dynax.app). Shares the
 // DynaX session but has its own minimal chrome — not the full clinic dashboard.
 export default function ScannerShellLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const initializeAuth = useAuthStore((s) => s.initializeAuth);
   const [ready, setReady] = useState(false);
   const [role, setRole] = useState('patient');
 
   useEffect(() => {
-    if (!tokenStore.getAccess()) {
-      router.replace('/scanner/login');
-      return;
-    }
-    setRole(tokenStore.getRole() || 'patient');
-    setReady(true);
-  }, [router]);
+    let active = true;
+    (async () => {
+      // Renew a lapsed token before deciding. Reopening the installed PWA after
+      // the access token expired should restore the session, not bounce to login.
+      const signedIn = await initializeAuth();
+      if (!active) return;
+      if (!signedIn) {
+        router.replace('/scanner/login');
+        return;
+      }
+      setRole(tokenStore.getRole() || 'patient');
+      setReady(true);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [router, initializeAuth]);
 
   async function signOut() {
     await authService.logout();
@@ -44,6 +59,9 @@ export default function ScannerShellLayout({ children }: { children: React.React
             <span className="text-sm font-bold text-slate-900">DynaX Scanner</span>
           </Link>
           <div className="flex items-center gap-1">
+            {/* In the shell header so it stays available for the whole
+                session, not just on the page the prompt happened to fire on. */}
+            <InstallButton expectedHost="scanner.dynax.app" className="mr-1" />
             <Link
               href={getDashboardRoute(role)}
               className="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 sm:flex"
@@ -59,7 +77,14 @@ export default function ScannerShellLayout({ children }: { children: React.React
           </div>
         </div>
       </header>
+      <InstallBanner
+        expectedHost="scanner.dynax.app"
+        productName="DynaXcan"
+        title="Install DynaXcan"
+        body="Install DynaXcan on your device for faster scanning — works best as an installed app."
+      />
       <main>{children}</main>
+      <WalkthroughTour role="scanner" />
     </div>
   );
 }

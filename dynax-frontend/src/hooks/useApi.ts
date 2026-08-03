@@ -7,6 +7,7 @@ import type {
   TherapySession, ClinicalNote, CarePlan, CarePlanTask, PatientRecord, TheraPay, FollowUp, Conversation, Message,
   Notification, AIConversation, AdminStats, User, PaginationParams,
   PaginatedResponse, DeviceMeasurement,
+  RehabCreditPlan, RehabCreditPlanDetail, RehabSessionRelease, RehabPendingPayout,
 } from '@/types';
 
 // ─── Keys ─────────────────────────────────────────────────────────────────────
@@ -26,6 +27,9 @@ export const qk = {
   devices: (patientId?: string) => ['emr', 'devices', patientId],
   therapayPlans: (p?: PaginationParams) => ['therapay', 'plans', p],
   therapayBalance: (patientId: string) => ['therapay', 'balance', patientId],
+  rehabCreditPlans: (p?: PaginationParams) => ['rehab-credit', 'plans', p],
+  rehabCreditPlan: (id: string) => ['rehab-credit', 'plans', id],
+  rehabPendingPayouts: ['rehab-credit', 'payouts', 'pending'],
   conversations: ['messages', 'conversations'],
   messages: (convId: string, p?: PaginationParams) => ['messages', convId, p],
   notifications: (p?: PaginationParams) => ['notifications', p],
@@ -381,6 +385,84 @@ export const useReviewApplication = () => {
     mutationFn: ({ id, status, notes }: { id: string; status: 'approved' | 'rejected'; notes?: string }) =>
       apiPost(`/therapay/applications/${id}/review`, { status, notes }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['therapay', 'applications'] }),
+  });
+};
+
+// ─── Rehab Credit ─────────────────────────────────────────────────────────────
+// Mediloan-backed financing. DynaX records session confirmations and what an
+// admin reports from Mediloan — it never collects repayment from patients.
+
+// Role-aware list: a patient sees their own plans, a physio sees plans assigned
+// to them, an admin sees all.
+export const useRehabCreditPlans = (params?: PaginationParams, enabled = true) =>
+  useQuery<PaginatedResponse<RehabCreditPlan>>({
+    queryKey: qk.rehabCreditPlans(params),
+    queryFn: () => apiGetPaginated('/rehab-credit/plans', params as Record<string, unknown>),
+    enabled,
+  });
+
+// Full detail: plan + its session releases + the Mediloan repayment schedule.
+export const useRehabCreditPlan = (planId?: string) =>
+  useQuery<RehabCreditPlanDetail>({
+    queryKey: qk.rehabCreditPlan(planId || ''),
+    queryFn: () => apiGet(`/rehab-credit/plans/${planId}`),
+    enabled: !!planId,
+  });
+
+export const useApplyForRehabCredit = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { total_credit_amount: number; reason?: string }) =>
+      apiPost<RehabCreditPlan>('/patient/rehab-credit/apply', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rehab-credit'] }),
+  });
+};
+
+// Shared confirm route — the backend reads the caller's role from the JWT to
+// decide whether this records the patient's or the physio's confirmation.
+export const useConfirmRehabSession = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (releaseId: string) =>
+      apiPost<RehabSessionRelease>(`/rehab-credit/sessions/${releaseId}/confirm`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rehab-credit'] }),
+  });
+};
+
+export const useReviewRehabCreditPlan = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ planId, ...body }: {
+      planId: string; decision: 'approve' | 'reject'; physio_id?: string;
+      session_rate?: number; sessions_total?: number; duration_months?: number;
+      mediloan_ref?: string; notes?: string;
+    }) => apiPost<RehabCreditPlan>(`/admin/rehab-credit/plans/${planId}/review`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rehab-credit'] }),
+  });
+};
+
+export const useRehabPendingPayouts = (enabled = true) =>
+  useQuery<RehabPendingPayout[]>({
+    queryKey: qk.rehabPendingPayouts,
+    queryFn: () => apiGet('/admin/rehab-credit/payouts/pending'),
+    enabled,
+  });
+
+export const useMarkRehabSessionPaid = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (releaseId: string) =>
+      apiPost<RehabSessionRelease>(`/admin/rehab-credit/sessions/${releaseId}/mark-paid`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rehab-credit'] }),
+  });
+};
+
+export const useMarkRehabRepayment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ checkId, status }: { checkId: string; status: 'on_time' | 'missed' }) =>
+      apiPost<RehabCreditPlan>(`/admin/rehab-credit/repayment/${checkId}/mark`, { status }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rehab-credit'] }),
   });
 };
 

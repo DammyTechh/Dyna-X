@@ -64,7 +64,10 @@ func (r *NotificationRepository) UnreadCount(ctx context.Context, userID string)
 // OnNotify, if set, is invoked (in a goroutine) after every notification is
 // created. It exists so an optional web-push sender can deliver a push for the
 // same event without this package depending on any push library. Default nil.
-var OnNotify func(userID, title, body string)
+// The notification's type and data payload are passed through so the push can
+// carry the same routing information the in-app notification has (e.g. the
+// room_id and call_url of an incoming call).
+var OnNotify func(userID, ntype, title, body string, data interface{})
 
 func (r *NotificationRepository) Create(ctx context.Context, userID, ntype, title, body string, data interface{}) error {
 	raw, _ := json.Marshal(data)
@@ -73,7 +76,7 @@ func (r *NotificationRepository) Create(ctx context.Context, userID, ntype, titl
 		 VALUES ($1,$2::notification_type,$3,$4,$5::jsonb)`,
 		userID, ntype, title, body, string(raw))
 	if err == nil && OnNotify != nil {
-		go OnNotify(userID, title, body)
+		go OnNotify(userID, ntype, title, body, data)
 	}
 	return err
 }

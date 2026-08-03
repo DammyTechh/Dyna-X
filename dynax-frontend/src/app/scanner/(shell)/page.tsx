@@ -33,6 +33,7 @@ export default function ScannerListPage() {
             </div>
             <Link
               href="/scanner/new"
+              data-tour="scan-new"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-lg transition hover:bg-slate-100"
             >
               <Plus className="h-4 w-4" /> New Scan
@@ -48,7 +49,7 @@ export default function ScannerListPage() {
         ) : !scans || scans.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div data-tour="scan-list" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {scans.map((scan, i) => (
               <motion.div
                 key={scan.id}

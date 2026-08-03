@@ -12,10 +12,12 @@ import (
 	adminH "github.com/dynalimb/dynax-backend/internal/handlers/admin"
 	aiH "github.com/dynalimb/dynax-backend/internal/handlers/ai"
 	authH "github.com/dynalimb/dynax-backend/internal/handlers/auth"
+	callsH "github.com/dynalimb/dynax-backend/internal/handlers/calls"
 	emrH "github.com/dynalimb/dynax-backend/internal/handlers/emr"
 	notifH "github.com/dynalimb/dynax-backend/internal/handlers/notifications"
 	patientH "github.com/dynalimb/dynax-backend/internal/handlers/patient"
 	profH "github.com/dynalimb/dynax-backend/internal/handlers/professional"
+	rehabH "github.com/dynalimb/dynax-backend/internal/handlers/rehabcredit"
 	msgH "github.com/dynalimb/dynax-backend/internal/handlers/sessions"
 	therapayH "github.com/dynalimb/dynax-backend/internal/handlers/therapay"
 	"github.com/dynalimb/dynax-backend/internal/middleware"
@@ -37,6 +39,8 @@ type Handlers struct {
 	Notifications *notifH.Handler
 	AI            *aiH.Handler
 	Messaging     *msgH.Handler
+	Calls         *callsH.Handler
+	RehabCredit   *rehabH.Handler
 	Studio        *studio.Handler
 	Scanner       *scanner.Handler
 }
@@ -133,6 +137,20 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			notif.POST("/push/subscribe", h.Notifications.SubscribePush)
 		}
 
+		// ── Calls (all roles) ─────────────────────────────────────────────────
+		protected.POST("/calls/notify", h.Calls.Notify)
+
+		// ── Rehab Credit — shared routes (all roles) ──────────────────────────
+		// Mediloan-backed financing. These are role-aware rather than
+		// role-gated: the service scopes what each caller can see and which
+		// side of a session confirmation their role records.
+		rehab := protected.Group("/rehab-credit")
+		{
+			rehab.GET("/plans", h.RehabCredit.ListPlans)
+			rehab.GET("/plans/:plan_id", h.RehabCredit.GetPlan)
+			rehab.POST("/sessions/:release_id/confirm", h.RehabCredit.ConfirmSession)
+		}
+
 		// ── DynaX Studio administration (admin only) ──────────────────────────
 		studioAdmin := protected.Group("/studio")
 		studioAdmin.Use(middleware.RequireAdmin())
@@ -202,6 +220,9 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 			patient.GET("/follow-ups", h.Patient.ListFollowUps)
 			patient.POST("/follow-ups/:follow_up_id/respond", h.Patient.RespondFollowUp)
 			patient.GET("/rehab-history", h.Patient.GetRehabHistory)
+
+			// Rehab Credit — patients apply; admin reviews.
+			patient.POST("/rehab-credit/apply", h.RehabCredit.Apply)
 		}
 
 		// ── Professional routes (any professional role) ────────────────────────
@@ -304,6 +325,16 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 
 			// Assignment
 			admin.POST("/assign", h.Admin.AssignProfessional)
+
+			// Rehab Credit — every money-touching action is admin-mediated,
+			// since Mediloan has no API and an admin transcribes its report.
+			adminRehab := admin.Group("/rehab-credit")
+			{
+				adminRehab.POST("/plans/:plan_id/review", h.RehabCredit.ReviewPlan)
+				adminRehab.POST("/sessions/:release_id/mark-paid", h.RehabCredit.MarkSessionPaid)
+				adminRehab.GET("/payouts/pending", h.RehabCredit.ListPendingPayouts)
+				adminRehab.POST("/repayment/:check_id/mark", h.RehabCredit.MarkRepaymentStatus)
+			}
 		}
 	}
 

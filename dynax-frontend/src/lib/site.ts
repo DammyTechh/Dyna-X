@@ -30,8 +30,8 @@ export const SITE = {
   // Brand logo — self-hosted in /public/images so it always loads (no imgur
   // hotlink). `logo` is the colour version for light surfaces; `logoLight` is
   // a white knockout for dark surfaces. Swap these two files to rebrand.
-  logo: '/images/logo.png',
-  logoLight: '/images/logo-light.png',
+  logo: '/images/dynax-logo.png',
+  logoLight: '/images/dynax-logo-light.png',
 } as const;
 
 export const NAV_LINKS = [

@@ -26,13 +26,37 @@ const nextConfig = {
     // scanner.dynax.app stands on its own: its root opens the DynaX Scanner.
     // It serves the same Next app (one deployment, shared .dynax.app session),
     // so every /dashboard/professional/scanner/* route works on the subdomain too.
-    return [
-      {
-        source: '/',
-        has: [{ type: 'host', value: 'scanner.dynax.app' }],
-        destination: '/scanner',
-      },
-    ];
+    // Each product subdomain opens straight into its own surface, giving every
+    // PWA a distinct origin — the only way app identity holds up on iOS.
+    // beforeFiles, not a flat array: a flat array is treated as afterFiles,
+    // which runs *after* the filesystem check — '/' matches the marketing
+    // page.tsx and the homepage is served before these ever fire.
+    return {
+      beforeFiles: [
+        {
+          source: '/',
+          has: [{ type: 'host', value: 'scanner.dynax.app' }],
+          destination: '/scanner',
+        },
+        {
+          source: '/',
+          has: [{ type: 'host', value: 'pro.dynax.app' }],
+          destination: '/dashboard/professional',
+        },
+        {
+          source: '/',
+          has: [{ type: 'host', value: 'care.dynax.app' }],
+          destination: '/dashboard/patient',
+        },
+        {
+          source: '/',
+          has: [{ type: 'host', value: 'physio.dynax.app' }],
+          destination: '/physiotherapy',
+        },
+      ],
+      afterFiles: [],
+      fallback: [],
+    };
   },
   async headers() {
     return [
