@@ -119,6 +119,10 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 	// renamed or missing object surfaces as a readable 503 from this API
 	// instead of a raw storage error in the user's browser tab.
 	v1.GET("/releases/current/download", h.Studio.DownloadCurrent)
+	// HEAD must be registered explicitly: gin matches methods exactly, so a
+	// GET-only route answers 404 to HEAD. The download page probes this URL
+	// with HEAD before navigating, and the updater may too.
+	v1.HEAD("/releases/current/download", h.Studio.DownloadCurrent)
 
 	// ── Protected routes (JWT required) ───────────────────────────────────────
 	protected := v1.Group("")
