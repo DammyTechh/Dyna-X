@@ -49,7 +49,12 @@ func CORS(cfg *config.Config) gin.HandlerFunc {
 			}
 			return false
 		},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		// HEAD is required, not cosmetic: the Studio download page probes the
+		// release artefact with a HEAD request before navigating to it, and the
+		// /releases/current/download redirect is a legitimate HEAD target too.
+		// Omitting it leaves gin-contrib/cors to reject the method on any
+		// preflighted variant of that request.
+		AllowMethods:     []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID", "X-Idempotency-Key"},
 		ExposeHeaders:    []string{"X-Request-ID", "X-Total-Count"},
 		AllowCredentials: true,

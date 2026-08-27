@@ -100,10 +100,25 @@ func (h *Handler) IngestEvents(c *gin.Context) {
 func (h *Handler) CurrentRelease(c *gin.Context) {
 	manifest, err := buildReleaseManifest()
 	if err != nil {
+		// A misconfiguration must never be cached -- it would outlive the fix.
+		c.Header("Cache-Control", "no-store")
 		c.JSON(http.StatusServiceUnavailable, gin.H{"detail": "Release information unavailable"})
 		return
 	}
-	c.Header("Cache-Control", "public, max-age=3600")
+
+	// Caching this for an hour is what turns a bad download URL into a day-long
+	// outage: browsers and any CDN in front of the API keep serving the dead
+	// link long after the environment is corrected. Cache only what is known
+	// good, and only briefly.
+	//
+	// ReleaseDownloadHealthy memoises its probe (5 min on success, 20 s on
+	// failure), so this costs at most one HEAD per five minutes -- not one per
+	// update check from every installed copy of Studio.
+	if healthy, _ := ReleaseDownloadHealthy(); healthy {
+		c.Header("Cache-Control", "public, max-age=300, stale-while-revalidate=60")
+	} else {
+		c.Header("Cache-Control", "no-store")
+	}
 	c.JSON(http.StatusOK, manifest)
 }
 
@@ -130,6 +145,10 @@ func buildReleaseManifest() (*ReleaseManifest, error) {
 	if published != "" && !validISOTimestamp(published) {
 		return nil, fmt.Errorf("invalid release publication timestamp")
 	}
+	sha256Hex := strings.ToLower(strings.TrimSpace(os.Getenv("DYNAX_RELEASE_SHA256")))
+	if sha256Hex != "" && !isHex64(sha256Hex) {
+		return nil, fmt.Errorf("invalid release sha256")
+	}
 	m := &ReleaseManifest{Product: "dynax-studio", Version: version}
 	if minimum != "" {
 		m.MinimumSupportedVersion = &minimum
@@ -139,7 +158,23 @@ func buildReleaseManifest() (*ReleaseManifest, error) {
 	if published != "" {
 		m.PublishedAt = &published
 	}
+	if sha256Hex != "" {
+		m.Sha256 = &sha256Hex
+	}
 	return m, nil
+}
+
+// isHex64 checks for a 64-character lowercase hex string (a SHA-256 digest).
+func isHex64(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	for _, r := range s {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+			return false
+		}
+	}
+	return true
 }
 
 // validISOTimestamp accepts the ISO-8601 forms the Python service accepted via
