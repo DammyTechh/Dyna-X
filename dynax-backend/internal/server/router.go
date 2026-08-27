@@ -114,6 +114,11 @@ func NewRouter(cfg *config.Config, jwtMgr *auth.Manager, h *Handlers) *gin.Engin
 	// token, independent of the platform JWT.
 	v1.POST("/events", h.Studio.IngestEvents)
 	v1.GET("/releases/current", h.Studio.CurrentRelease)
+	// Stable public download link. Resolves the artefact from
+	// DYNAX_RELEASE_ARTIFACT_URL, verifies it exists, then redirects -- so a
+	// renamed or missing object surfaces as a readable 503 from this API
+	// instead of a raw storage error in the user's browser tab.
+	v1.GET("/releases/current/download", h.Studio.DownloadCurrent)
 
 	// ── Protected routes (JWT required) ───────────────────────────────────────
 	protected := v1.Group("")

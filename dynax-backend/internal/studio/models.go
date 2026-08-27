@@ -38,6 +38,11 @@ type ReleaseManifest struct {
 	DownloadURL             *string `json:"download_url"`
 	ReleaseNotesURL         *string `json:"release_notes_url"`
 	PublishedAt             *string `json:"published_at"`
+	// Sha256 lets the updater verify the downloaded artefact before running it.
+	// buildReleaseManifest has always populated this from DYNAX_RELEASE_SHA256;
+	// the field was simply missing from the struct, so the package would not
+	// compile once that code path was reached.
+	Sha256 *string `json:"sha256"`
 }
 
 // TokenInfo is an ingestion token as shown to an administrator (never the secret).
