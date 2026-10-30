@@ -1071,7 +1071,11 @@ func (s *AdminService) ApproveProfessional(adminID, professionalID string, req *
 		return nil, errors.New("not_found")
 	}
 	if err := s.profs.SetApprovalStatus(ctx, professionalID, u.Role, req.IsApproved, adminID); err != nil {
-		return nil, err
+		if err.Error() == "no rows affected" {
+			// user exists but has no row in their role's profile table
+			return nil, errors.New("not_found")
+		}
+		return nil, fmt.Errorf("set approval status for %s (%s): %w", professionalID, u.Role, err)
 	}
 	prof, _ := s.profs.FindByUserID(ctx, professionalID, u.Role)
 	name := ""

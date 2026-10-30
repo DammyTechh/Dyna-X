@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"log"
+
 	"github.com/dynalimb/dynax-backend/internal/middleware"
 	"github.com/dynalimb/dynax-backend/internal/models"
 	"github.com/dynalimb/dynax-backend/pkg/response"
@@ -166,7 +168,13 @@ func (h *Handler) ApproveProfessional(c *gin.Context) {
 	profID := c.Param("professional_id")
 	prof, err := h.service.ApproveProfessional(adminID, profID, &req)
 	if err != nil {
-		response.NotFound(c, "Professional")
+		if err.Error() == "not_found" {
+			response.NotFound(c, "Professional")
+			return
+		}
+		_ = c.Error(err)
+		log.Printf("approve professional %s failed: %v", profID, err)
+		response.InternalError(c, err)
 		return
 	}
 	msg := "Professional approved"
